@@ -8,13 +8,17 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-export function AuditLogView() {
+import { AuditLogItem } from "@/domain/audit/types";
+
+export function AuditLogView({ initialLogs }: { initialLogs?: AuditLogItem[] }) {
   const { state } = useApp();
   const [filterActor, setFilterActor] = useState("");
   const [filterEntity, setFilterEntity] = useState("");
 
-  const filteredLogs = state.auditLogs.filter((log) => {
-    const matchesActor = filterActor ? log.actorId.includes(filterActor) || (log.actorName && log.actorName.includes(filterActor)) : true;
+  const sourceLogs = (initialLogs && initialLogs.length > 0) ? initialLogs : state.auditLogs;
+
+  const filteredLogs = sourceLogs.filter((log) => {
+    const matchesActor = filterActor ? log.actorId.toLowerCase().includes(filterActor.toLowerCase()) : true;
     const matchesEntity = filterEntity ? log.entityType.toLowerCase().includes(filterEntity.toLowerCase()) : true;
     return matchesActor && matchesEntity;
   });
@@ -27,17 +31,17 @@ export function AuditLogView() {
           <h1 className="text-2xl font-bold font-heading text-brand-light flex items-center gap-2">
             <span>Immutable Audit Log</span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-medium border border-emerald-500/30">
-              Rule AL-3 Append-Only
+              Rule AL-3 Append-Only (PostgreSQL)
             </span>
           </h1>
           <p className="text-xs text-brand-counter mt-1 font-sans">
-            Every state change in Indian Pixel is permanently attributed and cannot be modified or deleted by any role.
+            Every state change in Indian Pixel is permanently attributed and stored in PostgreSQL with zero deletion pathways.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-brand-counter font-mono">
-            Total Logged Events: <strong>{state.auditLogs.length}</strong>
+            Total Logged Events: <strong>{sourceLogs.length}</strong>
           </span>
         </div>
       </div>

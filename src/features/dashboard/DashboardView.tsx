@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useApp } from "@/lib/app-context";
+import { DashboardMetrics } from "@/domain/dashboard/queries";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,10 +21,9 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/utils";
-
 import { useRouter } from "next/navigation";
 
-export function DashboardView() {
+export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
   const router = useRouter();
   const { state, session, setSelectedProjectId, setIsCommandPaletteOpen } = useApp();
 
@@ -32,8 +32,34 @@ export function DashboardView() {
   const isPM = session?.isPM ?? false;
   const isStaff = session?.isStaff ?? false;
 
-  const overdueTasks = state.tasks.filter((t) => t.isOverdue);
-  const overdueInvoices = state.invoices.filter((i) => i.isOverdue);
+  // Use authoritative server metrics when provided, with clean state fallback
+  const activeProjectsCount = metrics?.activeProjectsCount ?? state.projects.length;
+  const tasksInProgressCount = metrics?.tasksInProgressCount ?? state.tasks.length;
+  const reconciledAmount = metrics?.reconciledPaymentsAmountPaise ?? state.payments.reduce((acc, p) => acc + p.amount, 0);
+  const auditCount = metrics?.totalAuditEntriesCount ?? state.auditLogs.length;
+
+  const overdueTasks = metrics?.overdueTasks ?? state.tasks.filter((t) => t.isOverdue).map((t) => ({
+    id: t.id,
+    name: t.name,
+    projectId: t.projectId,
+    projectName: t.projectName,
+    assigneeName: t.assigneeName,
+    dueDate: t.dueDate,
+  }));
+
+  const overdueInvoices = metrics?.overdueInvoices ?? state.invoices.filter((i) => i.isOverdue).map((i) => ({
+    id: i.id,
+    invoiceNumber: i.invoiceNumber,
+    projectId: i.projectId,
+    projectName: i.projectName,
+    amount: i.amount,
+    paidAmount: i.paidAmount,
+    remainingBalance: i.remainingBalance,
+    dueDate: i.dueDate,
+  }));
+
+  const projects = metrics?.projectsSummary ?? state.projects;
+  const auditLogs = metrics?.recentAuditLogs ?? state.auditLogs;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -43,7 +69,7 @@ export function DashboardView() {
           <h1 className="text-2xl font-bold font-heading text-brand-light flex items-center gap-2">
             <span>Operations Dashboard</span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-brand-cta/20 text-brand-cta font-mono font-medium">
-              Live OS
+              Live PostgreSQL
             </span>
           </h1>
           <p className="text-xs text-brand-counter mt-1 font-sans">
@@ -88,7 +114,7 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* 1. Escalation / Attention Feed (Phase 3 Section 13.2: Top-left / First Position) */}
+      {/* 1. Escalation / Attention Feed */}
       {(overdueTasks.length > 0 || overdueInvoices.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {overdueTasks.length > 0 && !isClient && (
@@ -97,14 +123,15 @@ export function DashboardView() {
               ruleId="T-5"
               recoveryActionLabel="Reassign & Resolve"
               onRecoveryAction={() => {
-                setSelectedProjectId(overdueTasks[0]!.projectId);
-                router.push(`/projects/${overdueTasks[0]!.projectId}`);
+                const target = overdueTasks[0]!;
+                setSelectedProjectId(target.projectId);
+                router.push(`/projects/${target.projectId}`);
               }}
             >
               <AlertTitle>Overdue Task Detected — Auto Escalated</AlertTitle>
               <AlertDescription>
                 <strong>{overdueTasks[0]!.name}</strong> assigned to {overdueTasks[0]!.assigneeName} under{" "}
-                <em>{overdueTasks[0]!.projectName}</em> was due on {overdueTasks[0]!.dueDate}.
+                <em>{overdueTasks[0]!.projectName}</em> was due on {overdueTasks[0]!.dueDate ?? "scheduled date"}.
               </AlertDescription>
             </Alert>
           )}
@@ -125,7 +152,7 @@ export function DashboardView() {
         </div>
       )}
 
-      {/* 2. KPI Cards Row (Phase 3 Section 11.3 & 13.3 — Capped at 4-6 cards) */}
+      {/* 2. KPI Cards Row with Authoritative PostgreSQL Data */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="hover:border-brand-cta/40 transition-colors">
           <CardHeader className="p-4 pb-1">
@@ -136,10 +163,10 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <div className="text-2xl font-bold font-heading text-brand-light">
-              {state.projects.length}
+              {activeProjectsCount}
             </div>
             <div className="flex items-center gap-1 mt-1 text-[11px] text-status-success font-medium">
-              <span>+100% on track</span>
+              <span>Live Database Count</span>
             </div>
           </CardContent>
         </Card>
@@ -153,10 +180,10 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <div className="text-2xl font-bold font-heading text-brand-light">
-              {state.tasks.length}
+              {tasksInProgressCount}
             </div>
             <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-300 font-medium">
-              <span>{overdueTasks.length} requires attention</span>
+              <span>{overdueTasks.length} overdue flagged</span>
             </div>
           </CardContent>
         </Card>
@@ -170,13 +197,10 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <div className="text-2xl font-bold font-heading text-brand-light">
-              {formatCurrency(
-                state.payments.reduce((acc, p) => acc + p.amount, 0),
-                "INR"
-              )}
+              {formatCurrency(reconciledAmount, "INR")}
             </div>
             <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-400 font-medium">
-              <span>Rule PAY-2 compliant</span>
+              <span>Rule PAY-2 Reconciled</span>
             </div>
           </CardContent>
         </Card>
@@ -184,16 +208,16 @@ export function DashboardView() {
         <Card className="hover:border-brand-cta/40 transition-colors">
           <CardHeader className="p-4 pb-1">
             <span className="text-[11px] font-mono text-brand-counter uppercase tracking-wider flex items-center justify-between">
-              <span>Audit Completeness</span>
+              <span>Audit Entries</span>
               <ShieldCheck className="h-4 w-4 text-purple-400" />
             </span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
             <div className="text-2xl font-bold font-heading text-brand-light">
-              100%
+              {auditCount}
             </div>
             <div className="flex items-center gap-1 mt-1 text-[11px] text-brand-counter font-mono">
-              <span>{state.auditLogs.length} immutable entries</span>
+              <span>PostgreSQL Immutable</span>
             </div>
           </CardContent>
         </Card>
@@ -201,7 +225,7 @@ export function DashboardView() {
 
       {/* 3. Main Grid: Active Projects Summary & Real-Time Audit Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Projects Table / Cards (2 cols) */}
+        {/* Active Projects Table */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold font-heading text-brand-light">
@@ -219,7 +243,7 @@ export function DashboardView() {
           </div>
 
           <div className="space-y-3">
-            {state.projects.map((project) => (
+            {projects.map((project) => (
               <div
                 key={project.id}
                 onClick={() => {
@@ -244,14 +268,16 @@ export function DashboardView() {
                     <h3 className="text-sm font-semibold text-brand-light group-hover:text-brand-cta transition-colors font-heading">
                       {project.name}
                     </h3>
-                    <p className="text-xs text-brand-counter line-clamp-1">
-                      {project.description}
-                    </p>
+                    {project.description && (
+                      <p className="text-xs text-brand-counter line-clamp-1">
+                        {project.description}
+                      </p>
+                    )}
                   </div>
 
                   <div className="text-right flex-shrink-0">
                     <span className="text-[11px] text-brand-counter block font-mono">
-                      Target: {project.targetDate}
+                      Target: {project.targetDate ?? "Flexible"}
                     </span>
                     <span className="text-xs font-medium text-brand-light block mt-1">
                       PM: {project.pmName}
@@ -259,7 +285,7 @@ export function DashboardView() {
                   </div>
                 </div>
 
-                {/* Progress Bar (Phase 3 Section 9.5) */}
+                {/* Progress Bar */}
                 <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-brand-counter">
                   <div className="flex items-center gap-4">
                     <span>
@@ -284,7 +310,7 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Real-time Audit & Activity Feed (1 col) */}
+        {/* Real-time Audit & Activity Feed */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold font-heading text-brand-light">
@@ -296,7 +322,7 @@ export function DashboardView() {
           </div>
 
           <Card className="h-[380px] overflow-y-auto space-y-3 p-3">
-            {state.auditLogs.map((log) => (
+            {auditLogs.map((log) => (
               <div
                 key={log.id}
                 className="p-2.5 rounded border border-white/5 bg-brand-main-dark/80 text-xs space-y-1"
@@ -310,8 +336,8 @@ export function DashboardView() {
                   </span>
                 </div>
                 <p className="text-brand-light text-[11px]">
-                  <strong>{log.actorName ?? log.actorId}</strong> acted on {log.entityType}{" "}
-                  {log.entityName && <em>({log.entityName})</em>}
+                  <strong>{log.actorId}</strong> acted on {log.entityType}{" "}
+                  {log.entityId && <em>({log.entityId})</em>}
                 </p>
                 {log.justification && (
                   <p className="text-[10px] text-brand-counter italic">

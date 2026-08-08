@@ -68,18 +68,21 @@ export async function recordApprovalDecisionAction(input: RecordApprovalInput) {
       data: { status: newStatus },
     });
 
-    // Write immutable audit log entry (Rule AL-1)
-    writeAuditLogEntry({
-      workspaceId: session.workspaceId,
-      actorId: session.user.id,
-      actorType: "USER",
-      entityType: "Milestone",
-      entityId: input.milestoneId,
-      action: `milestone.${input.decision.toLowerCase()}`,
-      priorState: milestone.status,
-      newState: newStatus,
-      justification: input.comment ?? null,
-    });
+    // Write immutable audit log entry into PostgreSQL inside same transaction (Rule AL-1, AL-3)
+    await writeAuditLogEntry(
+      {
+        workspaceId: session.workspaceId,
+        actorId: session.user.id,
+        actorType: "USER",
+        entityType: "Milestone",
+        entityId: input.milestoneId,
+        action: `milestone.${input.decision.toLowerCase()}`,
+        priorState: milestone.status,
+        newState: newStatus,
+        justification: input.comment ?? null,
+      },
+      tx
+    );
   });
 
   revalidatePath(`/projects/${milestone.service.projectId}`);

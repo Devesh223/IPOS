@@ -59,3 +59,20 @@ export function assertProjectReopenHasReason(reopenReason?: string): void {
     throw new BusinessRuleError("P-6", "Reopening a Completed or Cancelled Project requires a recorded reason.");
   }
 }
+
+/**
+ * Asserts that an agreement gate is satisfied before project execution leaves Draft status (Rule AG-3).
+ */
+export function assertProjectHasActiveAgreement(
+  isAgreementGateEnforced: boolean,
+  hasActiveAgreement: boolean,
+  clientName?: string
+): void {
+  if (isAgreementGateEnforced && !hasActiveAgreement) {
+    throw new BusinessRuleError(
+      "AG-3",
+      `Project execution cannot commence for client '${clientName ?? "Client"}' without an active, signed client master agreement.`
+    );
+  }
+}
+

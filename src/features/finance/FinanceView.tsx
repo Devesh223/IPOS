@@ -10,11 +10,18 @@ import { Modal } from "@/components/ui/modal";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-export function FinanceView() {
+export function FinanceView({
+  initialData,
+}: {
+  initialData?: { invoices: any[]; payments: any[] };
+}) {
   const { state, recordPayment, session } = useApp();
 
+  const effectiveInvoices = initialData?.invoices && initialData.invoices.length > 0 ? initialData.invoices : state.invoices;
+  const effectivePayments = initialData?.payments && initialData.payments.length > 0 ? initialData.payments : state.payments;
+
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>(state.invoices[0]?.id || "");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>(effectiveInvoices[0]?.id || "");
   const [paymentAmount, setPaymentAmount] = useState<number>(5000000);
   const [referenceNumber, setReferenceNumber] = useState<string>("UTR-" + Math.floor(Math.random() * 9000000000));
 

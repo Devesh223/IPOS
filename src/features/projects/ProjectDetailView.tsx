@@ -23,7 +23,13 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-export function ProjectDetailView({ projectId }: { projectId?: string }) {
+export function ProjectDetailView({
+  projectId,
+  initialData,
+}: {
+  projectId?: string;
+  initialData?: { projects: any[]; tasks: any[]; invoices: any[] };
+}) {
   const {
     state,
     selectedProjectId,
@@ -39,10 +45,14 @@ export function ProjectDetailView({ projectId }: { projectId?: string }) {
   const [overrideJustification, setOverrideJustification] = useState("");
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
 
+  const effectiveProjects = initialData?.projects && initialData.projects.length > 0 ? initialData.projects : state.projects;
+  const effectiveTasks = initialData?.tasks && initialData.tasks.length > 0 ? initialData.tasks : state.tasks;
+  const effectiveInvoices = initialData?.invoices && initialData.invoices.length > 0 ? initialData.invoices : state.invoices;
+
   const effectiveId = projectId || selectedProjectId;
-  const project = state.projects.find((p) => p.id === effectiveId) || state.projects[0]!;
-  const projectTasks = state.tasks.filter((t) => t.projectId === project.id);
-  const projectInvoices = state.invoices.filter((i) => i.projectId === project.id);
+  const project = effectiveProjects.find((p) => p.id === effectiveId) || effectiveProjects[0]!;
+  const projectTasks = effectiveTasks.filter((t) => t.projectId === project.id);
+  const projectInvoices = effectiveInvoices.filter((i) => i.projectId === project.id);
 
   const isClient = session?.isClient ?? false;
   const isSuperAdminOrAdmin = session?.isAdmin ?? true;

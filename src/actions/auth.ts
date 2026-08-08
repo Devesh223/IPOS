@@ -201,6 +201,8 @@ export async function logoutAction(): Promise<void> {
   redirect("/auth/login");
 }
 
+import { sendEmail } from "@/domain/email/service";
+
 /**
  * Initiates forgot-password verification email.
  */
@@ -215,7 +217,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
   });
 
   if (user) {
-    const token = crypto.randomBytes(24).toString("hex");
+    const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await prisma.verification.create({
@@ -225,6 +227,15 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
         expiresAt,
       },
     });
+
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+    await sendEmail({
+      to: email,
+      subject: "Password Reset Request — Indian Pixel Studio",
+      text: `Hello ${user.name},\n\nWe received a request to reset your password. Click the link below to set a new password:\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email.`,
+      html: `<p>Hello ${user.name},</p><p>We received a request to reset your password. <a href="${resetUrl}">Click here to reset your password</a>.</p><p>This link expires in 1 hour.</p>`,
+    });
   }
 
   // Always return success to prevent email enumeration attacks
@@ -233,3 +244,107 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
     redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}`,
   };
 }
+
+/**
+ * Completes password reset using verified token.
+ */
+export async function resetPasswordAction(formData: FormData): Promise<AuthActionResult> {
+  const token = formData.get("token") as string;
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const password = formData.get("password") as string;
+
+  if (!token || !email || !password) {
+    return { success: false, error: "Token, email, and password are required." };
+  }
+
+  if (password.length < 8) {
+    return { success: false, error: "Password must be at least 8 characters long." };
+  }
+
+  // 1. Verify token existence and expiry
+  const verification = await prisma.verification.findFirst({
+    where: {
+      identifier: email,
+      value: token,
+      expiresAt: {
+        gt: new Date(),
+      },
+    },
+  });
+
+  if (!verification) {
+    return { success: false, error: "Invalid or expired password reset link. Please request a new one." };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    return { success: false, error: "Account not found." };
+  }
+
+  const newHash = hashPassword(password);
+
+  // 2. Transactionally update user password and clean up verification token
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    });
+
+    await tx.account.updateMany({
+      where: { userId: user.id, providerId: "credential" },
+      data: { password: newHash },
+    });
+
+    // Invalidate all existing sessions for security on password change
+    await tx.session.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Invalidate used verification token
+    await tx.verification.deleteMany({
+      where: { identifier: email, value: token },
+    });
+  });
+
+  return { success: true, redirectTo: "/auth/login?reset=success" };
+}
+
+/**
+ * Verifies email using verification token.
+ */
+export async function verifyEmailAction(token: string, email: string): Promise<AuthActionResult> {
+  if (!token || !email) {
+    return { success: false, error: "Token and email are required." };
+  }
+
+  const verification = await prisma.verification.findFirst({
+    where: {
+      identifier: email.toLowerCase(),
+      value: token,
+      expiresAt: {
+        gt: new Date(),
+      },
+    },
+  });
+
+  if (!verification) {
+    return { success: false, error: "Invalid or expired email verification link." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { email: email.toLowerCase() },
+      data: { emailVerified: true },
+    });
+
+    await tx.verification.deleteMany({
+      where: { identifier: email.toLowerCase(), value: token },
+    });
+  });
+
+  return { success: true, redirectTo: "/auth/login?verified=true" };
+}
+
