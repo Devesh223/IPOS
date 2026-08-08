@@ -9,6 +9,7 @@ const PUBLIC_PATHS = [
   "/auth/forgot-password/sent",
   "/auth/reset-password",
   "/auth/verify",
+  "/auth/client-onboarding",
 ];
 
 export function middleware(request: NextRequest) {
@@ -37,7 +38,7 @@ export function middleware(request: NextRequest) {
   }
 
   // 3. Authenticated user visiting login/signup -> redirect to dashboard
-  if (sessionToken && isPublicPath) {
+  if (sessionToken && isPublicPath && pathname !== "/auth/client-onboarding") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

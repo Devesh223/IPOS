@@ -62,7 +62,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
 
   const user = session.user;
   if (user.isSuspended) {
-    return null; // Rule G-7 non-destructive offboarding
+    return null; // Rule G-7 non-destructive offboarding: suspended accounts are immediately locked out
   }
 
   // Determine active workspace membership
@@ -79,9 +79,13 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   // Project level role
   const projectRole = user.projectRoles[0]?.role;
   const isPM = projectRole === ProjectRole.PROJECT_MANAGER || isAdmin;
-  const isStaff = projectRole === ProjectRole.DESIGNER || projectRole === ProjectRole.DEVELOPER || isPM;
+  const isStaff =
+    projectRole === ProjectRole.DESIGNER ||
+    projectRole === ProjectRole.DEVELOPER ||
+    globalRole === GlobalRole.STAFF ||
+    isPM;
   const isFreelancer = projectRole === ProjectRole.FREELANCER;
-  const isClient = projectRole === ProjectRole.CLIENT;
+  const isClient = projectRole === ProjectRole.CLIENT || globalRole === GlobalRole.VIEWER;
 
   return {
     user: {
