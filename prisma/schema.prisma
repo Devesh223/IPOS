@@ -1,0 +1,803 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------------------------
+// 1. Core Workspace & Multi-Tenancy (Rule G-1)
+// --------------------------------------------------------
+
+model Workspace {
+  id                    String    @id @default(cuid())
+  name                  String
+  slug                  String    @unique
+  timezone              String    @default("Asia/Kolkata") // Rule G-9
+  enforcePaymentGate    Boolean   @default(true)          // Rule PAY-3
+  enforceAgreementGate  Boolean   @default(true)          // Rule AG-3
+  onboardingStatus      String    @default("COMPLETED")   // PENDING, COMPLETED
+  setupStep             Int       @default(4)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  users                 WorkspaceMember[]
+  clients               Client[]
+  projects              Project[]
+  teams                 Team[]
+  files                 File[]
+  invoices              Invoice[]
+  payments              Payment[]
+  agreements            Agreement[]
+  auditLogs             AuditLogEntry[]
+  notifications         Notification[]
+
+  @@map("workspaces")
+}
+
+// --------------------------------------------------------
+// 2. Identity & Authentication (Better-Auth Architecture)
+// --------------------------------------------------------
+
+enum GlobalRole {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE
+  VIEWER
+  STAFF
+}
+
+enum ProjectRole {
+  PROJECT_MANAGER
+  DESIGNER
+  DEVELOPER
+  FREELANCER
+  VIEWER
+  CLIENT
+}
+
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique
+  name          String
+  avatarUrl     String?
+  emailVerified Boolean           @default(false)
+  image         String?
+  passwordHash  String?
+  isSuspended   Boolean           @default(false) // Rule G-7 non-destructive offboarding
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  memberships   WorkspaceMember[]
+  projectRoles  ProjectMember[]
+  tasks         Task[]
+  reviews       Review[]
+  approvals     Approval[]
+  deliverableVersions DeliverableVersion[]
+  uploadedFiles File[]
+  notes         Note[]
+  notifications Notification[]
+  teamMembers   TeamMember[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("verifications")
+}
+
+model WorkspaceMember {
+  id          String      @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        GlobalRole  @default(STAFF)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId, role])
+  @@map("workspace_members")
+}
+
+model Team {
+  id          String        @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  members     TeamMember[]
+
+  @@index([workspaceId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+// --------------------------------------------------------
+// 3. Client Management (Phase 1, 5.5; Rules C-1..C-4)
+// --------------------------------------------------------
+
+enum ClientStatus {
+  ACTIVE
+  ARCHIVED
+  ONBOARDING_PENDING
+}
+
+model Client {
+  id                String          @id @default(cuid())
+  workspaceId       String
+  name              String
+  companyName       String?
+  email             String?
+  tier              String          @default("Enterprise Retainer")
+  status            ClientStatus    @default(ACTIVE)
+  onboardingStatus  String          @default("ACTIVE")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  contacts          ClientContact[]
+  projects          Project[]
+  agreements        Agreement[]
+  addOnRequests     AddOnRequest[]
+
+  @@index([workspaceId, status])
+  @@map("clients")
+}
+
+model ClientContact {
+  id          String    @id @default(cuid())
+  workspaceId String
+  clientId    String
+  name        String
+  email       String
+  phone       String?
+  roleTitle   String?
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  attendees   MeetingAttendee[]
+
+  @@index([workspaceId, clientId])
+  @@map("client_contacts")
+}
+
+// --------------------------------------------------------
+// 4. Project Management & Hierarchy (Rules P-1..P-6, S-1..S-4)
+// --------------------------------------------------------
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id              String          @id @default(cuid())
+  workspaceId     String
+  clientId        String          // Rule P-1: immutable Client parentage
+  pmId            String?         // Rule P-2: exactly one PM once Active
+  name            String
+  description     String?
+  status          ProjectStatus   @default(DRAFT)
+  startDate       DateTime?
+  targetDate      DateTime?
+  reopenCount     Int             @default(0) // Rule P-6
+  reopenReason    String?
+  cancelledReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  client          Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  members         ProjectMember[]
+  services        Service[]
+  files           File[]
+  invoices        Invoice[]
+  payments        Payment[]
+  meetings        Meeting[]
+  notes           Note[]
+  agreements      Agreement[]
+  addOnRequests   AddOnRequest[]
+
+  @@index([workspaceId, status])
+  @@index([clientId, status])
+  @@index([pmId, status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id                  String      @id @default(cuid())
+  workspaceId         String
+  projectId           String
+  userId              String
+  role                ProjectRole @default(DEVELOPER)
+  widenedVisibility   Boolean     @default(false) // Rule G-4 for Freelancers
+  widenedJustification String?   // Rule AL-6
+  createdAt           DateTime    @default(now())
+
+  project             Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, userId])
+  @@index([workspaceId, projectId])
+  @@index([userId, role])
+  @@map("project_members")
+}
+
+enum ServiceStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  projectId       String        // Rule S-1
+  name            String
+  description     String?
+  status          ServiceStatus @default(NOT_STARTED)
+  isClientVisible Boolean       @default(true) // Edge Case 19
+  order           Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  milestones      Milestone[]
+
+  @@index([workspaceId, projectId])
+  @@index([projectId, status])
+  @@map("services")
+}
+
+// --------------------------------------------------------
+// 5. Milestones, Tasks, Deliverables (Rules T-1..T-5, D-1..D-4)
+// --------------------------------------------------------
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED_FOR_APPROVAL
+  APPROVED
+  CHANGES_REQUESTED
+  CANCELLED
+}
+
+model Milestone {
+  id                    String          @id @default(cuid())
+  workspaceId           String
+  serviceId             String
+  name                  String
+  description           String?
+  status                MilestoneStatus @default(PENDING)
+  dueDate               DateTime?
+  order                 Int             @default(0)
+  taskCompletionCount   Int             @default(0) // Cached rollup (Phase 4, 4.3)
+  requiresVerification  Boolean         @default(false) // Rule T-2
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  service               Service         @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  tasks                 Task[]
+  invoices              Invoice[]
+  payments              Payment[]
+
+  @@unique([serviceId, order])
+  @@index([workspaceId, serviceId])
+  @@index([serviceId, status])
+  @@map("milestones")
+}
+
+enum TaskStatus {
+  BACKLOG
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED_FOR_VERIFICATION
+  COMPLETE
+  BLOCKED
+  CANCELLED
+}
+
+model Task {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  milestoneId     String        // Parent Milestone
+  assigneeId      String?       // Rule T-1: Single assignee
+  name            String
+  description     String?
+  status          TaskStatus    @default(BACKLOG)
+  dueDate         DateTime?
+  isOverdue       Boolean       @default(false) // Rule T-5 auto-flagged
+  blockedReason   String?
+  cancelledReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  milestone       Milestone     @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  assignee        User?         @relation(fields: [assigneeId], references: [id], onDelete: Restrict)
+  deliverables    Deliverable[]
+  files           File[]
+
+  @@index([workspaceId, milestoneId])
+  @@index([assigneeId, status])
+  @@index([workspaceId, status])
+  @@map("tasks")
+}
+
+enum DeliverableStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  SUPERSEDED
+}
+
+model Deliverable {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  taskId          String              // Rule D-1
+  name            String
+  description     String?
+  status          DeliverableStatus   @default(DRAFT)
+  currentVersion  Int                 @default(1) // Rule D-3 versioning
+  isClientVisible Boolean             @default(true) // Rule D-4
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  task            Task                @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  versions        DeliverableVersion[]
+  reviews         Review[]
+  files           File[]
+
+  @@index([workspaceId, taskId])
+  @@index([taskId, status])
+  @@map("deliverables")
+}
+
+model DeliverableVersion {
+  id              String      @id @default(cuid())
+  workspaceId     String
+  deliverableId   String
+  versionNumber   Int
+  fileId          String?
+  submittedById   String
+  changeSummary   String?
+  createdAt       DateTime    @default(now())
+
+  deliverable     Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Restrict)
+  submittedBy     User        @relation(fields: [submittedById], references: [id], onDelete: Restrict)
+  reviews         Review[]
+
+  @@unique([deliverableId, versionNumber])
+  @@index([workspaceId, deliverableId])
+  @@map("deliverable_versions")
+}
+
+// --------------------------------------------------------
+// 6. Reviews & Approvals (Rules R-1..R-3, A-1..A-4)
+// --------------------------------------------------------
+
+enum ReviewStatus {
+  OPEN
+  SUBMITTED
+  CLOSED
+}
+
+model Review {
+  id                    String              @id @default(cuid())
+  workspaceId           String
+  deliverableId         String
+  deliverableVersionId  String?             // Rule R-3: version-specific feedback
+  reviewerId            String
+  isClientReviewer      Boolean             @default(false)
+  content               String
+  status                ReviewStatus        @default(SUBMITTED)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  deliverable           Deliverable         @relation(fields: [deliverableId], references: [id], onDelete: Restrict)
+  version               DeliverableVersion? @relation(fields: [deliverableVersionId], references: [id], onDelete: Restrict)
+  reviewer              User                @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, deliverableId])
+  @@index([deliverableVersionId])
+  @@map("reviews")
+}
+
+enum ApprovalEntityType {
+  DELIVERABLE
+  MILESTONE
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+model Approval {
+  id              String              @id @default(cuid())
+  workspaceId     String
+  entityType      ApprovalEntityType
+  entityId        String              // MilestoneId or DeliverableId
+  versionNumber   Int                 @default(1)
+  stageNumber     Int                 @default(1) // Rule A-3 multi-stage sequence
+  approverId      String              // Rule A-1, A-4
+  decision        ApprovalDecision
+  comment         String?             // Rule AL-5
+  isReopened      Boolean             @default(false) // Rule A-2 Reopen linkage
+  reopenedReason  String?
+  createdAt       DateTime            @default(now())
+
+  approver        User                @relation(fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([approverId, decision])
+  @@map("approvals")
+}
+
+// --------------------------------------------------------
+// 7. Finance: Invoices & Payments (Rules PAY-1..PAY-4)
+// --------------------------------------------------------
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  workspaceId   String
+  projectId     String
+  milestoneId   String?       // Milestone-linked billing (Rule PAY-1)
+  invoiceNumber String
+  amount        Int           // Stored in paise/cents
+  paidAmount    Int           @default(0)
+  currency      String        @default("INR")
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime
+  issuedAt      DateTime?
+  paidAt        DateTime?
+  voidReason    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  milestone     Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  payments      Payment[]
+  files         File[]
+
+  @@unique([workspaceId, invoiceNumber])
+  @@index([workspaceId, status])
+  @@index([projectId, status])
+  @@index([dueDate, status])
+  @@map("invoices")
+}
+
+enum PaymentStatus {
+  RECORDED
+  RECONCILED
+  DISPUTED
+  REFUNDED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  workspaceId     String
+  projectId       String
+  invoiceId       String
+  milestoneId     String?       // Rule PAY-1
+  amount          Int           // Stored in paise/cents
+  currency        String        @default("INR")
+  status          PaymentStatus @default(RECORDED)
+  paymentMethod   String        @default("BANK_TRANSFER")
+  referenceNumber String?
+  disputeReason   String?
+  refundId        String?       // Rule PAY-4: linked offsetting record
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  workspace       Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  milestone       Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, status])
+  @@index([invoiceId, status])
+  @@map("payments")
+}
+
+// --------------------------------------------------------
+// 8. Agreements & Add-on Requests (Rules AG-1..AG-3)
+// --------------------------------------------------------
+
+enum AgreementStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+}
+
+model Agreement {
+  id                  String          @id @default(cuid())
+  workspaceId         String
+  clientId            String          // Rule AG-1
+  projectId           String?         // Optional Project scoping
+  title               String
+  terms               String
+  status              AgreementStatus @default(DRAFT)
+  version             Int             @default(1) // Rule AG-2
+  signedAt            DateTime?
+  supersededByVersion Int?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  workspace           Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  client              Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project             Project?        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, clientId])
+  @@index([projectId, status])
+  @@map("agreements")
+}
+
+enum AddOnStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  DECLINED
+  CONVERTED
+}
+
+model AddOnRequest {
+  id                  String      @id @default(cuid())
+  workspaceId         String
+  projectId           String
+  clientId            String
+  requestedById       String
+  title               String
+  description         String
+  estimatedCost       Int?        // In paise
+  status              AddOnStatus @default(SUBMITTED)
+  clientVisibleReason String?     // Rule N-3 / Edge Case 91
+  internalNotes       String?
+  convertedServiceId  String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  project             Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  client              Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, projectId])
+  @@index([projectId, status])
+  @@map("addon_requests")
+}
+
+// --------------------------------------------------------
+// 9. Files, Assets, Meetings, Notes
+// --------------------------------------------------------
+
+model File {
+  id              String      @id @default(cuid())
+  workspaceId     String
+  projectId       String      // Rule F-1: mandatory Project context
+  taskId          String?
+  deliverableId   String?
+  invoiceId       String?
+  uploaderId      String
+  filename        String
+  storageKey      String      // R2 namespace: workspaceId/projectId/entityType/...
+  mimeType        String
+  sizeBytes       Int
+  isQuarantined   Boolean     @default(false) // Section 7.8
+  isScanning      Boolean     @default(false)
+  isArchived      Boolean     @default(false) // Rule F-2
+  createdAt       DateTime    @default(now())
+
+  workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  task            Task?       @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  deliverable     Deliverable? @relation(fields: [deliverableId], references: [id], onDelete: Restrict)
+  invoice         Invoice?    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  uploader        User        @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, projectId])
+  @@index([taskId])
+  @@index([deliverableId])
+  @@map("files")
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model Meeting {
+  id                    String          @id @default(cuid())
+  workspaceId           String
+  projectId             String          // Rule M-1
+  title                 String
+  agenda                String?
+  meetingTime           DateTime
+  durationMinutes       Int             @default(30)
+  meetingUrl            String?
+  status                MeetingStatus   @default(SCHEDULED)
+  rescheduledMeetingId  String?         // Linked schedule chain
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  project               Project         @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  attendees             MeetingAttendee[]
+  notes                 Note[]
+
+  @@index([workspaceId, projectId])
+  @@index([meetingTime, status])
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  id              String         @id @default(cuid())
+  meetingId       String
+  userId          String?
+  clientContactId String?
+  attended        Boolean        @default(false)
+
+  meeting         Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  clientContact   ClientContact? @relation(fields: [clientContactId], references: [id], onDelete: Restrict)
+
+  @@map("meeting_attendees")
+}
+
+model Note {
+  id              String      @id @default(cuid())
+  workspaceId     String
+  projectId       String      // Rule G-3, 5.19/5.20
+  meetingId       String?
+  authorId        String
+  content         String
+  isClientVisible Boolean     @default(false) // Hard-coded visibility fork
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  project         Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  meeting         Meeting?    @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  author          User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, projectId, isClientVisible])
+  @@map("notes")
+}
+
+// --------------------------------------------------------
+// 10. Notifications & Append-Only Audit Logs (Rules N-1, AL-1..9)
+// --------------------------------------------------------
+
+enum NotificationPriority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+model Notification {
+  id            String                @id @default(cuid())
+  workspaceId   String
+  recipientId   String
+  senderProcess String                @default("System") // Rule N-1 / AL-2
+  eventType     String                // e.g. "approval.rejected"
+  entityType    String                // e.g. "Milestone"
+  entityId      String
+  title         String
+  message       String
+  priority      NotificationPriority  @default(NORMAL)
+  actionUrl     String?
+  isRead        Boolean               @default(false)
+  readAt        DateTime?
+  retryCount    Int                   @default(0)
+  createdAt     DateTime              @default(now())
+
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  recipient     User                  @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, recipientId, isRead])
+  @@index([priority, isRead])
+  @@map("notifications")
+}
+
+model AuditLogEntry {
+  id            String    @id @default(cuid())
+  workspaceId   String    // Rule G-1
+  actorId       String    // Rule AL-2: user ID or named system process
+  actorType     String    @default("USER") // USER, SYSTEM_PROCESS
+  entityType    String    // Project, Milestone, Task, Approval, Payment...
+  entityId      String
+  action        String    // e.g., "milestone.approved", "payment.recorded"
+  priorState    String?
+  newState      String?
+  justification String?   // Rule AL-6
+  amount        Int?      // Rule AL-4 (financial)
+  currency      String?   // Rule AL-4
+  timestamp     DateTime  @default(now())
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, entityType, entityId])
+  @@index([actorId, workspaceId, timestamp])
+  @@index([workspaceId, timestamp])
+  @@map("audit_log_entries")
+}
