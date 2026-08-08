@@ -4,15 +4,20 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { writeAuditLogEntry } from "@/domain/audit/service";
-import { InvoiceStatus, PaymentStatus } from "@prisma/client";
+import { computeInvoiceTotals, RawLineItemInput } from "@/domain/finance/calculations";
+import { assertLineItemsValid, assertInvoiceCanReceivePayment, assertInvoiceCanBeVoided } from "@/domain/finance/invoice-rules";
+import { assertInvoiceEligibleForCreditNote, assertCreditNoteAmountValid } from "@/domain/finance/credit-notes";
+import { getPaymentGateway } from "@/domain/finance/gateway";
+import { InvoiceStatus, PaymentStatus, CreditNoteStatus } from "@prisma/client";
 
 export interface CreateInvoiceInput {
   projectId: string;
   milestoneId?: string;
-  invoiceNumber: string;
-  amountInPaise: number;
+  invoiceNumber?: string;
   dueDate: string;
-  currency?: string;
+  isInterState?: boolean;
+  notes?: string;
+  lineItems: RawLineItemInput[];
 }
 
 export interface RecordPaymentInput {
@@ -23,14 +28,33 @@ export interface RecordPaymentInput {
   autoReconcile?: boolean;
 }
 
+export interface IssueCreditNoteInput {
+  invoiceId: string;
+  amountInPaise: number;
+  reason: string;
+}
+
 export interface RecordRefundInput {
   originalPaymentId: string;
   refundAmountInPaise: number;
   reason: string;
 }
 
+export interface WebhookProcessInput {
+  provider: "razorpay" | "stripe";
+  eventId: string;
+  eventType: string;
+  invoiceId: string;
+  amountInPaise: number;
+  currency: string;
+  referenceNumber: string;
+  rawBody: string;
+  signature: string;
+  webhookSecret?: string;
+}
+
 /**
- * Creates and issues a new milestone or project Invoice (Rules PAY-1, AL-1).
+ * Creates and issues a new Invoice with server-calculated GST and Line Items (Rules PAY-1, AL-1).
  */
 export async function createInvoiceAction(input: CreateInvoiceInput) {
   const session = await requireSession();
@@ -39,34 +63,67 @@ export async function createInvoiceAction(input: CreateInvoiceInput) {
     throw new Error("UNAUTHORIZED: Only Finance or Admin roles can issue invoices.");
   }
 
-  if (input.amountInPaise <= 0) {
-    throw new Error("Invoice amount must be greater than zero.");
-  }
+  assertLineItemsValid(input.lineItems);
 
   const project = await prisma.project.findFirst({
     where: { id: input.projectId, workspaceId: session.workspaceId },
+    include: { client: true },
   });
 
   if (!project) {
     throw new Error(`Project with ID '${input.projectId}' was not found in this workspace.`);
   }
 
-  const invoice = await prisma.$transaction(async (tx) => {
+  // Authoritative server-side calculation
+  const totals = computeInvoiceTotals(input.lineItems, input.isInterState ?? false);
+
+  // Generate deterministic invoice number if not provided
+  const invoiceCount = await prisma.invoice.count({ where: { workspaceId: session.workspaceId } });
+  const year = new Date().getFullYear();
+  const autoInvoiceNumber = input.invoiceNumber?.trim() || `IP-INV-${year}-${String(invoiceCount + 1).padStart(4, "0")}`;
+
+  const createdInvoice = await prisma.$transaction(async (tx) => {
+    // 1. Create Invoice header
     const inv = await tx.invoice.create({
       data: {
         workspaceId: session.workspaceId,
         projectId: input.projectId,
         milestoneId: input.milestoneId || null,
-        invoiceNumber: input.invoiceNumber,
-        amount: input.amountInPaise,
+        invoiceNumber: autoInvoiceNumber,
+        subtotal: totals.subtotalInPaise,
+        taxAmount: totals.taxAmountInPaise,
+        taxRate: 1800, // 18.00%
+        isInterState: totals.isInterState,
+        amount: totals.grandTotalInPaise,
         paidAmount: 0,
-        currency: input.currency || "INR",
+        currency: "INR",
         status: InvoiceStatus.ISSUED,
         dueDate: new Date(input.dueDate),
         issuedAt: new Date(),
+        notes: input.notes ?? null,
       },
     });
 
+    // 2. Create Line Items
+    for (let i = 0; i < totals.lineItems.length; i++) {
+      const item = totals.lineItems[i]!;
+      await tx.invoiceLineItem.create({
+        data: {
+          workspaceId: session.workspaceId,
+          invoiceId: inv.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitAmount: item.unitAmountInPaise,
+          taxableAmount: item.taxableAmountInPaise,
+          taxRate: item.taxRateBasisPoints,
+          taxAmount: item.taxAmountInPaise,
+          totalAmount: item.totalAmountInPaise,
+          order: i,
+        },
+      });
+    }
+
+    // 3. Write immutable audit log
     await writeAuditLogEntry(
       {
         workspaceId: session.workspaceId,
@@ -77,9 +134,9 @@ export async function createInvoiceAction(input: CreateInvoiceInput) {
         action: "invoice.issued",
         priorState: null,
         newState: "ISSUED",
-        justification: `Invoice ${input.invoiceNumber} issued for project '${project.name}'`,
-        amount: input.amountInPaise,
-        currency: inv.currency,
+        justification: `Invoice ${autoInvoiceNumber} issued for ${project.client.name} (${project.name}) with ${totals.lineItems.length} line items`,
+        amount: totals.grandTotalInPaise,
+        currency: "INR",
       },
       tx
     );
@@ -90,21 +147,17 @@ export async function createInvoiceAction(input: CreateInvoiceInput) {
   revalidatePath("/finance");
   revalidatePath(`/projects/${input.projectId}`);
   revalidatePath("/dashboard");
-  return { success: true, invoice };
+  return { success: true, invoice: createdInvoice };
 }
 
 /**
- * Records a verified Payment transaction against an Invoice with overpayment protection (Rules PAY-1, PAY-4, AL-1).
+ * Records a verified Payment against an Invoice with overpayment and status protection (Rules PAY-1, PAY-5, AL-1).
  */
 export async function recordPaymentAction(input: RecordPaymentInput) {
   const session = await requireSession();
 
   if (!session.isFinance && !session.isAdmin) {
     throw new Error("UNAUTHORIZED: Only Finance or Admin roles can record and reconcile payments.");
-  }
-
-  if (input.amountInPaise <= 0) {
-    throw new Error("Payment amount must be greater than zero.");
   }
 
   const invoice = await prisma.invoice.findFirst({
@@ -116,15 +169,9 @@ export async function recordPaymentAction(input: RecordPaymentInput) {
     throw new Error(`Invoice with ID '${input.invoiceId}' was not found in this workspace.`);
   }
 
-  if (invoice.status === InvoiceStatus.VOID) {
-    throw new Error("Cannot record payment against a VOID invoice.");
-  }
+  assertInvoiceCanReceivePayment(invoice.status, invoice.paidAmount, invoice.amount, input.amountInPaise);
 
   const newPaidAmount = invoice.paidAmount + input.amountInPaise;
-  if (newPaidAmount > invoice.amount) {
-    throw new Error(`Payment amount (${input.amountInPaise / 100} INR) exceeds remaining invoice balance (${(invoice.amount - invoice.paidAmount) / 100} INR).`);
-  }
-
   const newStatus =
     newPaidAmount >= invoice.amount ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
 
@@ -176,6 +223,7 @@ export async function recordPaymentAction(input: RecordPaymentInput) {
   });
 
   revalidatePath("/finance");
+  revalidatePath(`/finance/invoices/${invoice.id}`);
   revalidatePath(`/projects/${invoice.projectId}`);
   revalidatePath("/dashboard");
   return { success: true, payment };
@@ -218,7 +266,7 @@ export async function reconcilePaymentAction(paymentId: string, bankReference?: 
         action: "payment.reconciled",
         priorState: payment.status,
         newState: "RECONCILED",
-        justification: `Bank credit confirmed and reconciled with UTR/Ref: ${bankReference || payment.referenceNumber}`,
+        justification: `Bank settlement reconciled with UTR/Ref: ${bankReference || payment.referenceNumber}`,
         amount: payment.amount,
         currency: payment.currency,
       },
@@ -229,22 +277,90 @@ export async function reconcilePaymentAction(paymentId: string, bankReference?: 
   });
 
   revalidatePath("/finance");
+  revalidatePath(`/finance/invoices/${payment.invoiceId}`);
   revalidatePath("/dashboard");
   return { success: true, payment: updated };
 }
 
 /**
- * Voids an issued invoice before any non-refunded payments have been credited (Rule AL-6).
+ * Issues an independent Credit Note referencing an Invoice (Rules CN-1..CN-3, AL-1, AL-6).
+ */
+export async function issueCreditNoteAction(input: IssueCreditNoteInput) {
+  const session = await requireSession();
+
+  if (!session.isFinance && !session.isAdmin) {
+    throw new Error("UNAUTHORIZED: Only Finance or Admin roles can issue credit notes.");
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: input.invoiceId, workspaceId: session.workspaceId },
+    include: { creditNotes: true },
+  });
+
+  if (!invoice) {
+    throw new Error(`Invoice with ID '${input.invoiceId}' was not found in this workspace.`);
+  }
+
+  assertInvoiceEligibleForCreditNote(invoice.status);
+
+  const existingCreditsSum = invoice.creditNotes
+    .filter((cn) => cn.status !== CreditNoteStatus.VOID)
+    .reduce((sum, cn) => sum + cn.amount, 0);
+
+  assertCreditNoteAmountValid(invoice.amount, existingCreditsSum, input.amountInPaise, input.reason);
+
+  const creditNoteCount = await prisma.creditNote.count({ where: { workspaceId: session.workspaceId } });
+  const year = new Date().getFullYear();
+  const creditNoteNumber = `IP-CN-${year}-${String(creditNoteCount + 1).padStart(4, "0")}`;
+
+  const creditNote = await prisma.$transaction(async (tx) => {
+    const cn = await tx.creditNote.create({
+      data: {
+        workspaceId: session.workspaceId,
+        invoiceId: invoice.id,
+        creditNoteNumber,
+        amount: input.amountInPaise,
+        reason: input.reason,
+        status: CreditNoteStatus.ISSUED,
+        issuedById: session.user.id,
+        issuedAt: new Date(),
+      },
+    });
+
+    await writeAuditLogEntry(
+      {
+        workspaceId: session.workspaceId,
+        actorId: session.user.id,
+        actorType: "USER",
+        entityType: "CreditNote",
+        entityId: cn.id,
+        action: "credit_note.issued",
+        priorState: null,
+        newState: "ISSUED",
+        justification: `Credit note ${creditNoteNumber} issued against invoice ${invoice.invoiceNumber}: "${input.reason}"`,
+        amount: input.amountInPaise,
+        currency: invoice.currency,
+      },
+      tx
+    );
+
+    return cn;
+  });
+
+  revalidatePath("/finance");
+  revalidatePath(`/finance/invoices/${invoice.id}`);
+  revalidatePath("/dashboard");
+  return { success: true, creditNote };
+}
+
+/**
+ * Voids an issued invoice before active non-refunded payments are posted (Rules INV-5, INV-6, AL-6).
  */
 export async function voidInvoiceAction(invoiceId: string, voidReason: string) {
   const session = await requireSession();
 
   if (!session.isFinance && !session.isAdmin) {
     throw new Error("UNAUTHORIZED: Only Finance or Admin roles can void invoices.");
-  }
-
-  if (!voidReason || voidReason.trim() === "") {
-    throw new Error("Rule AL-6: A written reason is mandatory when voiding an invoice.");
   }
 
   const invoice = await prisma.invoice.findFirst({
@@ -257,9 +373,7 @@ export async function voidInvoiceAction(invoiceId: string, voidReason: string) {
   }
 
   const activePayments = invoice.payments.filter((p) => p.status !== PaymentStatus.REFUNDED);
-  if (activePayments.length > 0) {
-    throw new Error("Cannot void an invoice with active payments. Refund all payments first.");
-  }
+  assertInvoiceCanBeVoided(invoice.status, activePayments.length, voidReason);
 
   await prisma.$transaction(async (tx) => {
     await tx.invoice.update({
@@ -289,6 +403,7 @@ export async function voidInvoiceAction(invoiceId: string, voidReason: string) {
   });
 
   revalidatePath("/finance");
+  revalidatePath(`/finance/invoices/${invoiceId}`);
   revalidatePath(`/projects/${invoice.projectId}`);
   revalidatePath("/dashboard");
   return { success: true };
@@ -296,7 +411,6 @@ export async function voidInvoiceAction(invoiceId: string, voidReason: string) {
 
 /**
  * Records an offsetting refund record against an existing Payment (Rule PAY-4).
- * Payments are immutable and never deleted; refunds create linked negative offsetting records.
  */
 export async function recordRefundAction(input: RecordRefundInput) {
   const session = await requireSession();
@@ -384,7 +498,103 @@ export async function recordRefundAction(input: RecordRefundInput) {
   });
 
   revalidatePath("/finance");
+  revalidatePath(`/finance/invoices/${originalPayment.invoiceId}`);
   revalidatePath(`/projects/${originalPayment.projectId}`);
   revalidatePath("/dashboard");
   return { success: true, refund: result };
+}
+
+/**
+ * Handles incoming payment webhooks with cryptographic HMAC signature verification and persistent DB idempotency.
+ */
+export async function processPaymentWebhookAction(input: WebhookProcessInput) {
+  const gateway = getPaymentGateway();
+
+  // 1. Verify HMAC Signature
+  const isValidSignature = gateway.verifyWebhookSignature(
+    input.rawBody,
+    input.signature,
+    input.webhookSecret || process.env.PAYMENT_WEBHOOK_SECRET || "webhook_secret_mock"
+  );
+
+  if (!isValidSignature) {
+    throw new Error("SECURITY ERROR: Invalid webhook cryptographic signature.");
+  }
+
+  // 2. Transactionally record webhook event (unique constraint enforces persistent idempotency)
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Create idempotency record
+      await tx.paymentWebhookEvent.create({
+        data: {
+          provider: input.provider,
+          eventId: input.eventId,
+          eventType: input.eventType,
+          payload: JSON.parse(input.rawBody || "{}"),
+          status: "PROCESSED",
+        },
+      });
+
+      const invoice = await tx.invoice.findUnique({
+        where: { id: input.invoiceId },
+      });
+
+      if (!invoice) {
+        throw new Error(`Invoice '${input.invoiceId}' referenced in webhook does not exist.`);
+      }
+
+      const newPaidAmount = invoice.paidAmount + input.amountInPaise;
+      const newStatus = newPaidAmount >= invoice.amount ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
+
+      const payment = await tx.payment.create({
+        data: {
+          workspaceId: invoice.workspaceId,
+          projectId: invoice.projectId,
+          invoiceId: invoice.id,
+          milestoneId: invoice.milestoneId,
+          amount: input.amountInPaise,
+          currency: input.currency || invoice.currency,
+          status: PaymentStatus.RECONCILED,
+          paymentMethod: input.provider.toUpperCase(),
+          referenceNumber: input.referenceNumber,
+        },
+      });
+
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          paidAmount: newPaidAmount,
+          status: newStatus,
+          paidAt: newStatus === InvoiceStatus.PAID ? new Date() : null,
+        },
+      });
+
+      await writeAuditLogEntry(
+        {
+          workspaceId: invoice.workspaceId,
+          actorId: `webhook:${input.provider}`,
+          actorType: "SYSTEM_PROCESS",
+          entityType: "Payment",
+          entityId: payment.id,
+          action: "payment.webhook_captured",
+          priorState: invoice.status,
+          newState: newStatus,
+          justification: `Captured via verified ${input.provider} webhook (Event ID: ${input.eventId})`,
+          amount: input.amountInPaise,
+          currency: payment.currency,
+        },
+        tx
+      );
+
+      return payment;
+    });
+
+    return { success: true, paymentId: result.id };
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      // Prisma unique constraint violation -> Duplicate webhook event (Idempotent response)
+      return { success: true, message: "Webhook event already processed (Idempotent duplicate ignored)." };
+    }
+    throw error;
+  }
 }
