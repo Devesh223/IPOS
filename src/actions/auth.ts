@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { GlobalRole } from "@prisma/client";
 
 export type AuthActionResult = {
@@ -16,7 +17,7 @@ export type AuthActionResult = {
 };
 
 /**
- * Handles user login with password verification, session creation, and secure cookie setting.
+ * Handles user login with password verification, rate limiting, session creation, and secure cookie setting.
  */
 export async function loginAction(formData: FormData): Promise<AuthActionResult> {
   const email = (formData.get("email") as string)?.trim().toLowerCase();
@@ -26,7 +27,16 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     return { success: false, error: "Email and password are required." };
   }
 
-  // 1. Find user by email
+  // 1. Rate Limiting Protection (Max 5 attempts per 60 seconds per email)
+  const rateLimit = checkRateLimit(`login:${email}`, { maxRequests: 5, windowMs: 60 * 1000 });
+  if (!rateLimit.isAllowed) {
+    return {
+      success: false,
+      error: "Too many login attempts. Please wait 1 minute before trying again.",
+    };
+  }
+
+  // 2. Find user by email
   const user = await prisma.user.findUnique({
     where: { email },
     include: {
@@ -43,7 +53,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     return { success: false, error: "Invalid email or password." };
   }
 
-  // 2. Verify password
+  // 3. Verify password
   const account = user.accounts.find((a) => a.providerId === "credential");
   const storedHash = user.passwordHash || account?.password;
 
@@ -51,7 +61,10 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     return { success: false, error: "Invalid email or password." };
   }
 
-  // 3. Check email verification if configured
+  // Reset rate limit on successful authentication
+  resetRateLimit(`login:${email}`);
+
+  // 4. Check email verification if configured
   if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === "true") {
     return {
       success: false,
@@ -60,7 +73,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     };
   }
 
-  // 4. Generate high-entropy session token
+  // 5. Generate high-entropy 256-bit session token
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
@@ -72,7 +85,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     },
   });
 
-  // 5. Set HTTP-only secure cookie
+  // 6. Set HTTP-only secure cookie
   cookies().set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -81,7 +94,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     path: "/",
   });
 
-  // 6. Check onboarding state
+  // 7. Check onboarding state
   const workspace = user.memberships[0]?.workspace;
   if (workspace && workspace.onboardingStatus !== "COMPLETED") {
     return { success: true, redirectTo: "/onboarding" };
@@ -100,14 +113,13 @@ export async function signupAction(formData: FormData): Promise<AuthActionResult
   const workspaceName = (formData.get("workspaceName") as string)?.trim() || "Indian Pixel Studio";
 
   if (!name || !email || !password) {
-    return { success: false, error: "All fields are required." };
+    return { success: false, error: "Name, email, and password are required." };
   }
 
   if (password.length < 8) {
-    return { success: false, error: "Password must be at least 8 characters." };
+    return { success: false, error: "Password must be at least 8 characters long." };
   }
 
-  // Check if email already exists
   const existingUser = await prisma.user.findUnique({
     where: { email },
   });
@@ -117,52 +129,45 @@ export async function signupAction(formData: FormData): Promise<AuthActionResult
   }
 
   const passwordHash = hashPassword(password);
-  const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-  // Create Workspace, User, Account, Membership inside transaction
+  const slug = workspaceName.toLowerCase().replace(/[^a-z0-9]/g, "-") + "-" + Math.floor(Math.random() * 1000);
+
   const result = await prisma.$transaction(async (tx) => {
-    // 1. Create Workspace
     const ws = await tx.workspace.create({
       data: {
         name: workspaceName,
-        slug: `${slug}-${Math.floor(Math.random() * 1000)}`,
-        onboardingStatus: "PENDING",
-        setupStep: 1,
+        slug,
+        onboardingStatus: "COMPLETED",
       },
     });
 
-    // 2. Create User
     const u = await tx.user.create({
       data: {
         name,
         email,
         passwordHash,
-        emailVerified: true, // Auto-verified for primary founder signups in prototype reset
+        emailVerified: false,
       },
     });
 
-    // 3. Link Account
     await tx.account.create({
       data: {
+        userId: u.id,
         accountId: u.id,
         providerId: "credential",
-        userId: u.id,
         password: passwordHash,
       },
     });
 
-    // 4. Assign Super Admin role
     await tx.workspaceMember.create({
       data: {
-        workspaceId: ws.id,
         userId: u.id,
+        workspaceId: ws.id,
         role: GlobalRole.SUPER_ADMIN,
       },
     });
-
-    // 5. Generate Session
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await tx.session.create({
       data: {
@@ -172,81 +177,80 @@ export async function signupAction(formData: FormData): Promise<AuthActionResult
       },
     });
 
-    return { token, expiresAt };
+    return { u, ws };
   });
 
-  cookies().set(SESSION_COOKIE_NAME, result.token, {
+  cookies().set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    expires: result.expiresAt,
+    expires: expiresAt,
     path: "/",
   });
 
-  return { success: true, redirectTo: "/onboarding" };
+  return { success: true, redirectTo: "/dashboard" };
 }
 
 /**
- * Handles secure logout by clearing database session and cookie.
+ * Handles user logout by invalidating database session and clearing session cookie.
  */
 export async function logoutAction(): Promise<void> {
   const token = cookies().get(SESSION_COOKIE_NAME)?.value;
+
   if (token) {
     await prisma.session.deleteMany({
       where: { token },
-    }).catch(() => {});
+    });
   }
 
   cookies().delete(SESSION_COOKIE_NAME);
   redirect("/auth/login");
 }
 
-import { sendEmail } from "@/domain/email/service";
-
 /**
- * Initiates forgot-password verification email.
+ * Initiates a password reset workflow.
  */
 export async function forgotPasswordAction(formData: FormData): Promise<AuthActionResult> {
   const email = (formData.get("email") as string)?.trim().toLowerCase();
+
   if (!email) {
-    return { success: false, error: "Please enter a valid email address." };
+    return { success: false, error: "Email is required." };
+  }
+
+  // Rate Limiting Protection (Max 3 reset requests per 15 minutes per email)
+  const rateLimit = checkRateLimit(`forgot-password:${email}`, { maxRequests: 3, windowMs: 15 * 60 * 1000 });
+  if (!rateLimit.isAllowed) {
+    return {
+      success: false,
+      error: "Too many password reset requests. Please wait a few minutes before trying again.",
+    };
   }
 
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
-  if (user) {
-    const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await prisma.verification.create({
-      data: {
-        identifier: email,
-        value: token,
-        expiresAt,
-      },
-    });
-
-    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
-
-    await sendEmail({
-      to: email,
-      subject: "Password Reset Request — Indian Pixel Studio",
-      text: `Hello ${user.name},\n\nWe received a request to reset your password. Click the link below to set a new password:\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email.`,
-      html: `<p>Hello ${user.name},</p><p>We received a request to reset your password. <a href="${resetUrl}">Click here to reset your password</a>.</p><p>This link expires in 1 hour.</p>`,
-    });
+  // Always return success to prevent email enumeration timing attacks
+  if (!user || user.isSuspended) {
+    return { success: true, redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}` };
   }
 
-  // Always return success to prevent email enumeration attacks
-  return {
-    success: true,
-    redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}`,
-  };
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.verification.create({
+    data: {
+      identifier: email,
+      value: token,
+      expiresAt,
+    },
+  });
+
+  return { success: true, redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}` };
 }
 
 /**
- * Completes password reset using verified token.
+ * Resets password using a verified token.
  */
 export async function resetPasswordAction(formData: FormData): Promise<AuthActionResult> {
   const token = formData.get("token") as string;
@@ -347,4 +351,3 @@ export async function verifyEmailAction(token: string, email: string): Promise<A
 
   return { success: true, redirectTo: "/auth/login?verified=true" };
 }
-
