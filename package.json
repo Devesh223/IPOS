@@ -15,7 +15,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:integrity": "npx tsx scripts/db-integrity.ts",
-    "bootstrap:admin": "npx tsx scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "npx tsx scripts/bootstrap-admin.ts",
+    "production:verify": "npx tsx scripts/production-verify.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
