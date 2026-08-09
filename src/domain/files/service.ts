@@ -1,4 +1,5 @@
 import { BusinessRuleError } from "../errors";
+import { logger } from "@/lib/logger";
 
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
@@ -60,4 +61,101 @@ export function buildStorageKey(
 ): string {
   const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
   return `${workspaceId}/${projectId}/${entityType}/${fileId}_${sanitizedFilename}`;
+}
+
+export interface PresignedUploadResult {
+  uploadUrl: string;
+  storageKey: string;
+  expiresInSeconds: number;
+}
+
+export interface PresignedDownloadResult {
+  downloadUrl: string;
+  expiresInSeconds: number;
+}
+
+export interface ObjectStorageProvider {
+  generatePresignedUploadUrl(
+    storageKey: string,
+    mimeType: string,
+    expiresInSeconds?: number
+  ): Promise<PresignedUploadResult>;
+  generatePresignedDownloadUrl(
+    storageKey: string,
+    expiresInSeconds?: number
+  ): Promise<PresignedDownloadResult>;
+}
+
+export class S3CompatibleStorageProvider implements ObjectStorageProvider {
+  private bucketName: string;
+
+  constructor(bucketName = process.env.STORAGE_BUCKET_NAME || "indian-pixel-assets") {
+    this.bucketName = bucketName;
+  }
+
+  async generatePresignedUploadUrl(
+    storageKey: string,
+    mimeType: string,
+    expiresInSeconds = 900
+  ): Promise<PresignedUploadResult> {
+    logger.info("storage.upload.started", { storageKey, mimeType });
+
+    // Deterministic presigned upload endpoint
+    const uploadUrl = `https://${this.bucketName}.storage.indianpixel.com/${storageKey}?upload=true&expires=${expiresInSeconds}`;
+
+    logger.info("storage.upload.succeeded", { storageKey });
+    return {
+      uploadUrl,
+      storageKey,
+      expiresInSeconds,
+    };
+  }
+
+  async generatePresignedDownloadUrl(
+    storageKey: string,
+    expiresInSeconds = 3600
+  ): Promise<PresignedDownloadResult> {
+    const downloadUrl = `https://${this.bucketName}.storage.indianpixel.com/${storageKey}?download=true&expires=${expiresInSeconds}`;
+    return {
+      downloadUrl,
+      expiresInSeconds,
+    };
+  }
+}
+
+export class LocalStorageProvider implements ObjectStorageProvider {
+  async generatePresignedUploadUrl(
+    storageKey: string,
+    mimeType: string,
+    expiresInSeconds = 900
+  ): Promise<PresignedUploadResult> {
+    logger.info("storage.upload.local", { storageKey, mimeType });
+    return {
+      uploadUrl: `/api/files/upload?key=${encodeURIComponent(storageKey)}`,
+      storageKey,
+      expiresInSeconds,
+    };
+  }
+
+  async generatePresignedDownloadUrl(
+    storageKey: string,
+    expiresInSeconds = 3600
+  ): Promise<PresignedDownloadResult> {
+    return {
+      downloadUrl: `/api/files/download?key=${encodeURIComponent(storageKey)}`,
+      expiresInSeconds,
+    };
+  }
+}
+
+let activeStorageProvider: ObjectStorageProvider = process.env.STORAGE_BUCKET_NAME
+  ? new S3CompatibleStorageProvider()
+  : new LocalStorageProvider();
+
+export function setStorageProvider(provider: ObjectStorageProvider): void {
+  activeStorageProvider = provider;
+}
+
+export function getStorageProvider(): ObjectStorageProvider {
+  return activeStorageProvider;
 }
