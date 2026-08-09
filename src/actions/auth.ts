@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { SESSION_COOKIE_NAME } from "@/lib/session";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 import { GlobalRole } from "@prisma/client";
 
 export type AuthActionResult = {
@@ -27,9 +28,12 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     return { success: false, error: "Email and password are required." };
   }
 
+  const timer = logger.startTimer("auth.login.attempt", { email });
+
   // 1. Rate Limiting Protection (Max 5 attempts per 60 seconds per email)
   const rateLimit = checkRateLimit(`login:${email}`, { maxRequests: 5, windowMs: 60 * 1000 });
   if (!rateLimit.isAllowed) {
+    logger.warn("auth.login.rate_limited", { email });
     return {
       success: false,
       error: "Too many login attempts. Please wait 1 minute before trying again.",
@@ -50,6 +54,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   });
 
   if (!user || user.isSuspended) {
+    logger.warn("auth.login.failed", { email, reason: user?.isSuspended ? "Account suspended" : "User not found" });
     return { success: false, error: "Invalid email or password." };
   }
 
@@ -58,6 +63,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   const storedHash = user.passwordHash || account?.password;
 
   if (!storedHash || !verifyPassword(password, storedHash)) {
+    logger.warn("auth.login.failed", { email, reason: "Password mismatch" });
     return { success: false, error: "Invalid email or password." };
   }
 
@@ -66,6 +72,7 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
   // 4. Check email verification if configured
   if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === "true") {
+    logger.info("auth.login.verification_required", { email, userId: user.id });
     return {
       success: false,
       error: "Please verify your email before logging in.",
@@ -92,6 +99,12 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
     sameSite: "lax",
     expires: expiresAt,
     path: "/",
+  });
+
+  timer.done({
+    event: "auth.login.succeeded",
+    userId: user.id,
+    workspaceId: user.memberships[0]?.workspaceId,
   });
 
   // 7. Check onboarding state
@@ -188,6 +201,12 @@ export async function signupAction(formData: FormData): Promise<AuthActionResult
     path: "/",
   });
 
+  logger.info("auth.signup.succeeded", {
+    userId: result.u.id,
+    workspaceId: result.ws.id,
+    email: result.u.email,
+  });
+
   return { success: true, redirectTo: "/dashboard" };
 }
 
@@ -201,6 +220,7 @@ export async function logoutAction(): Promise<void> {
     await prisma.session.deleteMany({
       where: { token },
     });
+    logger.info("auth.logout", { tokenRedacted: true });
   }
 
   cookies().delete(SESSION_COOKIE_NAME);
@@ -220,6 +240,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
   // Rate Limiting Protection (Max 3 reset requests per 15 minutes per email)
   const rateLimit = checkRateLimit(`forgot-password:${email}`, { maxRequests: 3, windowMs: 15 * 60 * 1000 });
   if (!rateLimit.isAllowed) {
+    logger.warn("auth.forgot_password.rate_limited", { email });
     return {
       success: false,
       error: "Too many password reset requests. Please wait a few minutes before trying again.",
@@ -232,6 +253,7 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
 
   // Always return success to prevent email enumeration timing attacks
   if (!user || user.isSuspended) {
+    logger.info("auth.forgot_password.requested", { email, userExists: false });
     return { success: true, redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}` };
   }
 
@@ -245,6 +267,8 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
       expiresAt,
     },
   });
+
+  logger.info("auth.forgot_password.token_created", { email, userId: user.id });
 
   return { success: true, redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}` };
 }
@@ -277,6 +301,7 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
   });
 
   if (!verification) {
+    logger.warn("auth.reset_password.invalid_token", { email });
     return { success: false, error: "Invalid or expired password reset link. Please request a new one." };
   }
 
@@ -313,6 +338,8 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
     });
   });
 
+  logger.info("auth.reset_password.succeeded", { userId: user.id, email: user.email });
+
   return { success: true, redirectTo: "/auth/login?reset=success" };
 }
 
@@ -335,6 +362,7 @@ export async function verifyEmailAction(token: string, email: string): Promise<A
   });
 
   if (!verification) {
+    logger.warn("auth.verify_email.invalid_token", { email });
     return { success: false, error: "Invalid or expired email verification link." };
   }
 
@@ -348,6 +376,8 @@ export async function verifyEmailAction(token: string, email: string): Promise<A
       where: { identifier: email.toLowerCase(), value: token },
     });
   });
+
+  logger.info("auth.verify_email.succeeded", { email });
 
   return { success: true, redirectTo: "/auth/login?verified=true" };
 }

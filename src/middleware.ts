@@ -15,34 +15,47 @@ const PUBLIC_PATHS = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Allow public static assets and API routes
+  // 1. Assign or propagate correlation Request ID
+  const requestId =
+    request.headers.get("x-request-id") ||
+    `req_${Math.random().toString(36).substring(2, 12)}`;
+
+  // 2. Allow public static assets and API routes
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.includes(".") ||
     pathname === "/favicon.ico"
   ) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
-  // 2. Unauthenticated user trying to access protected workspace routes
+  // 3. Unauthenticated user trying to access protected workspace routes
   if (!sessionToken && !isPublicPath) {
     const loginUrl = new URL("/auth/login", request.url);
     if (pathname !== "/") {
       loginUrl.searchParams.set("from", pathname);
     }
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
-  // 3. Authenticated user visiting login/signup -> redirect to dashboard
+  // 4. Authenticated user visiting login/signup -> redirect to dashboard
   if (sessionToken && isPublicPath && pathname !== "/auth/client-onboarding") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const response = NextResponse.redirect(new URL("/dashboard", request.url));
+    response.headers.set("x-request-id", requestId);
+    return response;
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("x-request-id", requestId);
+  return response;
 }
 
 export const config = {

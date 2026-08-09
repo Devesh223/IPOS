@@ -1,6 +1,9 @@
+import crypto from "crypto";
+
 /**
- * Structured Logger for Indian Pixel OS.
- * Automatically sanitizes and redacts sensitive credentials, session tokens, and secrets.
+ * Structured Production Logger & Observability Layer for Indian Pixel OS.
+ * Emits machine-readable JSON logs with automatic credential redaction,
+ * duration metrics, and request correlation tracing.
  */
 
 const REDACT_KEYS = [
@@ -13,9 +16,19 @@ const REDACT_KEYS = [
   "secret",
   "authorization",
   "cookie",
+  "apiKey",
+  "resendApiKey",
+  "webhookSecret",
+  "stripeSecretKey",
+  "razorpayKeySecret",
+  "databaseUrl",
+  "card",
+  "cvv",
+  "signature",
+  "clientSecret",
 ];
 
-function sanitize(obj: any): any {
+export function sanitize(obj: any): any {
   if (!obj || typeof obj !== "object") return obj;
 
   if (Array.isArray(obj)) {
@@ -35,39 +48,90 @@ function sanitize(obj: any): any {
   return result;
 }
 
+export function generateRequestId(): string {
+  return `req_${crypto.randomBytes(8).toString("hex")}`;
+}
+
+export interface StructuredLogPayload {
+  event?: string;
+  requestId?: string;
+  workspaceId?: string;
+  userId?: string;
+  provider?: string;
+  operation?: string;
+  durationMs?: number;
+  [key: string]: any;
+}
+
 export const logger = {
-  info(message: string, context?: Record<string, any>) {
-    console.log(
-      JSON.stringify({
-        level: "INFO",
-        timestamp: new Date().toISOString(),
-        message,
-        ...(context ? { context: sanitize(context) } : {}),
-      })
-    );
+  info(messageOrEvent: string, metadata?: StructuredLogPayload) {
+    const payload = {
+      level: "INFO",
+      timestamp: new Date().toISOString(),
+      event: metadata?.event || messageOrEvent,
+      message: messageOrEvent,
+      ...(metadata ? sanitize(metadata) : {}),
+    };
+    console.log(JSON.stringify(payload));
+    return payload;
   },
 
-  warn(message: string, context?: Record<string, any>) {
-    console.warn(
-      JSON.stringify({
-        level: "WARN",
-        timestamp: new Date().toISOString(),
-        message,
-        ...(context ? { context: sanitize(context) } : {}),
-      })
-    );
+  warn(messageOrEvent: string, metadata?: StructuredLogPayload) {
+    const payload = {
+      level: "WARN",
+      timestamp: new Date().toISOString(),
+      event: metadata?.event || messageOrEvent,
+      message: messageOrEvent,
+      ...(metadata ? sanitize(metadata) : {}),
+    };
+    console.warn(JSON.stringify(payload));
+    return payload;
   },
 
-  error(message: string, error?: any, context?: Record<string, any>) {
-    console.error(
-      JSON.stringify({
-        level: "ERROR",
-        timestamp: new Date().toISOString(),
-        message,
-        error: error?.message || String(error),
+  error(messageOrEvent: string, error?: any, metadata?: StructuredLogPayload) {
+    const payload = {
+      level: "ERROR",
+      timestamp: new Date().toISOString(),
+      event: metadata?.event || messageOrEvent,
+      message: messageOrEvent,
+      error: {
+        name: error?.name || "Error",
+        message: error?.message || String(error),
         stack: process.env.NODE_ENV !== "production" ? error?.stack : undefined,
-        ...(context ? { context: sanitize(context) } : {}),
-      })
-    );
+      },
+      ...(metadata ? sanitize(metadata) : {}),
+    };
+    console.error(JSON.stringify(payload));
+    return payload;
+  },
+
+  /**
+   * Starts a performance timer for an operational event and returns a finish callback.
+   */
+  startTimer(event: string, initialMeta?: StructuredLogPayload) {
+    const start = Date.now();
+    const requestId = initialMeta?.requestId || generateRequestId();
+
+    return {
+      requestId,
+      done(additionalMeta?: StructuredLogPayload) {
+        const durationMs = Date.now() - start;
+        return logger.info(event, {
+          ...initialMeta,
+          ...additionalMeta,
+          requestId,
+          durationMs,
+        });
+      },
+      fail(err: any, additionalMeta?: StructuredLogPayload) {
+        const durationMs = Date.now() - start;
+        return logger.error(event, err, {
+          ...initialMeta,
+          ...additionalMeta,
+          requestId,
+          durationMs,
+        });
+      },
+    };
   },
 };
