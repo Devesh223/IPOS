@@ -4,23 +4,19 @@ import React from "react";
 import { useApp } from "@/lib/app-context";
 import { DashboardMetrics } from "@/domain/dashboard/queries";
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
   CreditCard,
   FolderKanban,
   CheckSquare,
-  Users,
   ArrowUpRight,
   Plus,
   ShieldCheck,
   Zap,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
@@ -29,7 +25,6 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
 
   const isClient = session?.isClient ?? false;
   const isFinance = session?.isFinance ?? false;
-  const isPM = session?.isPM ?? false;
   const isStaff = session?.isStaff ?? false;
 
   // Use authoritative server metrics when provided, with clean state fallback
@@ -63,29 +58,29 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Top Quick Actions Bar (Phase 3 Section 13.5) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
+      {/* Top Header & Quick Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.07]">
         <div>
-          <h1 className="text-2xl font-bold font-heading text-brand-light flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-100 flex items-center gap-2.5">
             <span>Operations Dashboard</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-brand-cta/20 text-brand-cta font-mono font-medium">
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono border border-amber-500/20">
               Live PostgreSQL
             </span>
           </h1>
-          <p className="text-xs text-brand-counter mt-1 font-sans">
-            Single source of truth for all clients, active projects, gated approvals, and reconciled payments.
+          <p className="text-xs text-slate-400 mt-1">
+            Single source of truth for active projects, gated approvals, and reconciled financials.
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="text-xs"
+            className="text-xs bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] text-slate-300"
           >
-            <Zap className="h-3.5 w-3.5 text-brand-cta mr-1" />
+            <Zap className="h-3 w-3 text-amber-400 mr-1.5" />
             <span>Command Palette (⌘K)</span>
           </Button>
 
@@ -94,7 +89,7 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
               variant="primary"
               size="sm"
               onClick={() => router.push("/projects")}
-              className="text-xs"
+              className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold shadow-sm"
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
               <span>Create Project</span>
@@ -106,7 +101,7 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
               variant="primary"
               size="sm"
               onClick={() => router.push("/projects")}
-              className="text-xs"
+              className="text-xs bg-amber-500 hover:bg-amber-400 text-black font-semibold"
             >
               <span>Approve Pending Milestones</span>
             </Button>
@@ -114,7 +109,7 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
         </div>
       </div>
 
-      {/* 1. Escalation / Attention Feed */}
+      {/* 1. Escalation / Attention Alerts */}
       {(overdueTasks.length > 0 || overdueInvoices.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {overdueTasks.length > 0 && !isClient && (
@@ -152,97 +147,97 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
         </div>
       )}
 
-      {/* 2. KPI Cards Row with Authoritative PostgreSQL Data */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:border-brand-cta/40 transition-colors">
+      {/* 2. KPI Cards Row with Authoritative Data */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <Card className="bg-[#07100e] border-white/[0.07] hover:border-amber-500/25 transition-all">
           <CardHeader className="p-4 pb-1">
-            <span className="text-[11px] font-mono text-brand-counter uppercase tracking-wider flex items-center justify-between">
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Active Projects</span>
-              <FolderKanban className="h-4 w-4 text-brand-cta" />
+              <FolderKanban className="h-3.5 w-3.5 text-amber-400" />
             </span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <div className="text-2xl font-bold font-heading text-brand-light">
+            <div className="text-2xl font-bold font-heading text-slate-100">
               {activeProjectsCount}
             </div>
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-status-success font-medium">
-              <span>Live Database Count</span>
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-emerald-400 font-medium font-mono">
+              <span>Live Database Records</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:border-brand-cta/40 transition-colors">
+        <Card className="bg-[#07100e] border-white/[0.07] hover:border-amber-500/25 transition-all">
           <CardHeader className="p-4 pb-1">
-            <span className="text-[11px] font-mono text-brand-counter uppercase tracking-wider flex items-center justify-between">
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Tasks in Progress</span>
-              <CheckSquare className="h-4 w-4 text-sky-400" />
+              <CheckSquare className="h-3.5 w-3.5 text-sky-400" />
             </span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <div className="text-2xl font-bold font-heading text-brand-light">
+            <div className="text-2xl font-bold font-heading text-slate-100">
               {tasksInProgressCount}
             </div>
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-amber-300 font-medium">
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-400/90 font-medium font-mono">
               <span>{overdueTasks.length} overdue flagged</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:border-brand-cta/40 transition-colors">
+        <Card className="bg-[#07100e] border-white/[0.07] hover:border-amber-500/25 transition-all">
           <CardHeader className="p-4 pb-1">
-            <span className="text-[11px] font-mono text-brand-counter uppercase tracking-wider flex items-center justify-between">
-              <span>Reconciled Payments</span>
-              <CreditCard className="h-4 w-4 text-emerald-400" />
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Reconciled Collections</span>
+              <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
             </span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <div className="text-2xl font-bold font-heading text-brand-light">
+            <div className="text-2xl font-bold font-heading text-slate-100">
               {formatCurrency(reconciledAmount, "INR")}
             </div>
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-emerald-400 font-medium">
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-emerald-400 font-medium font-mono">
               <span>Rule PAY-2 Reconciled</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:border-brand-cta/40 transition-colors">
+        <Card className="bg-[#07100e] border-white/[0.07] hover:border-amber-500/25 transition-all">
           <CardHeader className="p-4 pb-1">
-            <span className="text-[11px] font-mono text-brand-counter uppercase tracking-wider flex items-center justify-between">
+            <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Audit Entries</span>
-              <ShieldCheck className="h-4 w-4 text-purple-400" />
+              <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
             </span>
           </CardHeader>
           <CardContent className="p-4 pt-1">
-            <div className="text-2xl font-bold font-heading text-brand-light">
+            <div className="text-2xl font-bold font-heading text-slate-100">
               {auditCount}
             </div>
-            <div className="flex items-center gap-1 mt-1 text-[11px] text-brand-counter font-mono">
+            <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400 font-mono">
               <span>PostgreSQL Immutable</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. Main Grid: Active Projects Summary & Real-Time Audit Feed */}
+      {/* 3. Main Grid: Active Projects & Real-Time Audit Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Projects Table */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Active Projects List */}
+        <div className="lg:col-span-2 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold font-heading text-brand-light">
+            <h2 className="text-sm font-semibold text-slate-200">
               Active Client Engagements
             </h2>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push("/projects")}
-              className="text-xs text-brand-cta hover:text-brand-cta-hover"
+              className="text-xs text-amber-400 hover:text-amber-300 p-0 h-auto"
             >
               <span>View all projects</span>
               <ArrowUpRight className="h-3 w-3 ml-1" />
             </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {projects.map((project) => (
               <div
                 key={project.id}
@@ -250,55 +245,55 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
                   setSelectedProjectId(project.id);
                   router.push(`/projects/${project.id}`);
                 }}
-                className="p-4 rounded-lg border border-white/10 bg-brand-dark/90 hover:border-brand-cta/50 transition-all cursor-pointer shadow-elevation-1 group"
+                className="p-3.5 rounded bg-[#07100e] border border-white/[0.07] hover:border-amber-500/30 transition-all cursor-pointer group shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-brand-counter">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-slate-300 border border-white/[0.06]">
                         {project.clientName}
                       </span>
                       <StatusBadge status={project.status} />
                       {project.stalledApprovalsCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-brand-cta border border-brand-cta/30">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                           Approval Pending
                         </span>
                       )}
                     </div>
-                    <h3 className="text-sm font-semibold text-brand-light group-hover:text-brand-cta transition-colors font-heading">
+                    <h3 className="text-xs font-semibold text-slate-100 group-hover:text-amber-400 transition-colors">
                       {project.name}
                     </h3>
                     {project.description && (
-                      <p className="text-xs text-brand-counter line-clamp-1">
+                      <p className="text-[11px] text-slate-400 line-clamp-1">
                         {project.description}
                       </p>
                     )}
                   </div>
 
                   <div className="text-right flex-shrink-0">
-                    <span className="text-[11px] text-brand-counter block font-mono">
+                    <span className="text-[10px] text-slate-400 block font-mono">
                       Target: {project.targetDate ?? "Flexible"}
                     </span>
-                    <span className="text-xs font-medium text-brand-light block mt-1">
+                    <span className="text-[11px] font-medium text-slate-300 block mt-0.5">
                       PM: {project.pmName}
                     </span>
                   </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-brand-counter">
-                  <div className="flex items-center gap-4">
+                <div className="mt-2.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center gap-3">
                     <span>
-                      <strong>{project.completedTasksCount}</strong> of <strong>{project.tasksCount}</strong> Tasks Complete
+                      <strong className="text-slate-200">{project.completedTasksCount}</strong> of <strong className="text-slate-200">{project.tasksCount}</strong> Tasks Complete
                     </span>
                     <span>•</span>
                     <span>
-                      <strong>{project.completedServicesCount}</strong> of <strong>{project.servicesCount}</strong> Services Complete
+                      <strong className="text-slate-200">{project.completedServicesCount}</strong> of <strong className="text-slate-200">{project.servicesCount}</strong> Services Complete
                     </span>
                   </div>
-                  <div className="w-28 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className="w-24 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
                     <div
-                      className="h-full bg-brand-cta rounded-full"
+                      className="h-full bg-amber-500 rounded-full"
                       style={{
                         width: `${Math.round((project.completedTasksCount / Math.max(1, project.tasksCount)) * 100)}%`,
                       }}
@@ -311,36 +306,36 @@ export function DashboardView({ metrics }: { metrics?: DashboardMetrics }) {
         </div>
 
         {/* Real-time Audit & Activity Feed */}
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold font-heading text-brand-light">
-              Traceable Event Trail
+            <h2 className="text-sm font-semibold text-slate-200">
+              Audit Event Trail
             </h2>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/20">
-              Rule AL-1 Verified
+            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/20">
+              Rule AL-1 Immutable
             </span>
           </div>
 
-          <Card className="h-[380px] overflow-y-auto space-y-3 p-3">
+          <Card className="h-[380px] overflow-y-auto space-y-2 p-2.5 bg-[#07100e] border-white/[0.07]">
             {auditLogs.map((log) => (
               <div
                 key={log.id}
-                className="p-2.5 rounded border border-white/5 bg-brand-main-dark/80 text-xs space-y-1"
+                className="p-2 rounded border border-white/[0.04] bg-[#040908] text-xs space-y-1"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-brand-cta font-semibold">
+                  <span className="font-mono text-[9px] text-amber-400 font-semibold uppercase">
                     {log.action}
                   </span>
-                  <span className="text-[10px] text-brand-counter/60 font-mono">
+                  <span className="text-[9px] text-slate-500 font-mono">
                     {formatRelativeTime(log.timestamp)}
                   </span>
                 </div>
-                <p className="text-brand-light text-[11px]">
-                  <strong>{log.actorId}</strong> acted on {log.entityType}{" "}
-                  {log.entityId && <em>({log.entityId})</em>}
+                <p className="text-slate-300 text-[10px]">
+                  <strong className="text-slate-100">{log.actorId}</strong> acted on {log.entityType}{" "}
+                  {log.entityId && <em className="text-slate-400">({log.entityId})</em>}
                 </p>
                 {log.justification && (
-                  <p className="text-[10px] text-brand-counter italic">
+                  <p className="text-[9px] text-slate-400 italic">
                     &ldquo;{log.justification}&rdquo;
                   </p>
                 )}
