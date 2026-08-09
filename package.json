@@ -12,7 +12,10 @@
     "test:watch": "vitest",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate:deploy": "prisma migrate deploy"
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:integrity": "npx tsx scripts/db-integrity.ts",
+    "bootstrap:admin": "npx tsx scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -57,10 +60,11 @@
     "prisma": "^5.20.0",
     "tailwindcss": "^3.4.13",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.1",
     "typescript": "^5.6.2",
     "vitest": "^2.1.1"
   },
   "prisma": {
-    "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.ts"
   }
 }
