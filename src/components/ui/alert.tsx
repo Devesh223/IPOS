@@ -4,18 +4,18 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Info, ArrowRight } from "luci
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-md border p-4 text-sm [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  "relative w-full rounded-md border p-3.5 text-xs [&>svg~*]:pl-6 [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:left-3.5 [&>svg]:top-3.5 [&>svg]:text-foreground",
   {
     variants: {
       variant: {
-        default: "bg-brand-dark border-white/10 text-brand-light",
+        default: "bg-[#060D0C] border-white/[0.08] text-slate-200",
         danger:
-          "border-status-danger/40 bg-red-950/40 text-red-200 [&>svg]:text-status-danger",
+          "border-rose-800/40 bg-rose-950/30 text-rose-200 [&>svg]:text-rose-400",
         warning:
-          "border-brand-cta/40 bg-amber-950/40 text-amber-200 [&>svg]:text-brand-cta",
+          "border-amber-800/40 bg-amber-950/30 text-amber-200 [&>svg]:text-amber-400",
         success:
-          "border-status-success/40 bg-emerald-950/40 text-emerald-200 [&>svg]:text-status-success",
-        info: "border-status-info/40 bg-sky-950/40 text-sky-200 [&>svg]:text-status-info",
+          "border-emerald-800/40 bg-emerald-950/30 text-emerald-200 [&>svg]:text-emerald-400",
+        info: "border-sky-800/40 bg-sky-950/30 text-sky-200 [&>svg]:text-sky-400",
       },
     },
     defaultVariants: {
@@ -47,9 +47,9 @@ const Alert = React.forwardRef<
     >
       <Icon className="h-4 w-4" />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {ruleId && (
-            <span className="inline-block px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono font-medium tracking-wide uppercase mr-2 text-brand-cta">
+            <span className="inline-block px-1.5 py-0.5 rounded bg-white/10 text-[9px] font-mono font-medium tracking-wide uppercase mr-2 text-amber-400">
               Rule {ruleId}
             </span>
           )}
@@ -59,10 +59,10 @@ const Alert = React.forwardRef<
           <button
             type="button"
             onClick={onRecoveryAction}
-            className="inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-4 text-brand-cta hover:text-brand-cta-hover self-start sm:self-auto flex-shrink-0"
+            className="inline-flex items-center gap-1 text-xs font-semibold underline underline-offset-4 text-amber-400 hover:text-amber-300 self-start sm:self-auto flex-shrink-0 cursor-pointer"
           >
             <span>{recoveryActionLabel}</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-3 w-3" />
           </button>
         )}
       </div>
@@ -77,7 +77,7 @@ const AlertTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h5
     ref={ref}
-    className={cn("mb-1 font-medium leading-none tracking-tight font-heading text-brand-light", className)}
+    className={cn("font-medium leading-tight tracking-tight font-heading text-slate-100", className)}
     {...props}
   />
 ));
@@ -89,10 +89,11 @@ const AlertDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-xs text-brand-light/90 [&_p]:leading-relaxed", className)}
+    className={cn("text-xs text-slate-300 [&_p]:leading-relaxed", className)}
     {...props}
   />
 ));
 AlertDescription.displayName = "AlertDescription";
 
 export { Alert, AlertTitle, AlertDescription };
+

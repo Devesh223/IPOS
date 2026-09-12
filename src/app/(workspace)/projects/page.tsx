@@ -1,7 +1,7 @@
 import React from "react";
 import { getSessionContext } from "@/lib/session";
 import { getWorkspaceProjectsData } from "@/domain/projects/queries";
-import { ProjectDetailView } from "@/features/projects/ProjectDetailView";
+import { ProjectsDirectoryView } from "@/features/projects/ProjectsDirectoryView";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,6 @@ export default async function ProjectsPage() {
   const session = await getSessionContext();
   const data = session ? await getWorkspaceProjectsData(session.workspaceId) : undefined;
 
-  return <ProjectDetailView initialData={data} />;
+  return <ProjectsDirectoryView initialData={data} />;
 }
+

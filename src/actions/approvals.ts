@@ -34,11 +34,34 @@ export async function recordApprovalDecisionAction(input: RecordApprovalInput) {
           project: true,
         },
       },
+      tasks: {
+        include: {
+          deliverables: {
+            include: {
+              versions: {
+                orderBy: { versionNumber: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!milestone) {
     throw new Error(`Milestone with ID ${input.milestoneId} was not found.`);
+  }
+
+  // Domain Rule Enforcement (Rules A-1, A-4)
+  assertGateNotAlreadyDecided(milestone.status === MilestoneStatus.APPROVED);
+
+  const latestDeliverableVersion = milestone.tasks
+    .flatMap((t) => t.deliverables)
+    .flatMap((d) => d.versions)[0];
+
+  if (latestDeliverableVersion?.submittedById) {
+    assertSubmitterIsNotApprover(latestDeliverableVersion.submittedById, session.user.id);
   }
 
   // 1. Transactionally record Approval decision and update Milestone status

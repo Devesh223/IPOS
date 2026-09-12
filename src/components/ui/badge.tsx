@@ -4,16 +4,16 @@ import { CheckCircle2, AlertTriangle, XCircle, Clock, CircleDot, MinusCircle } f
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm text-xs font-medium tracking-wide uppercase transition-colors select-none",
+  "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase tracking-wider transition-colors select-none",
   {
     variants: {
       variant: {
-        success: "bg-emerald-950/80 text-emerald-300 border border-emerald-500/30",
-        warning: "bg-amber-950/80 text-amber-300 border border-amber-500/30",
-        danger: "bg-red-950/80 text-red-300 border border-red-500/30",
-        info: "bg-sky-950/80 text-sky-300 border border-sky-500/30",
-        neutral: "bg-white/5 text-brand-counter border border-white/10",
-        primary: "bg-amber-500/20 text-brand-cta border border-brand-cta/30",
+        success: "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20",
+        warning: "bg-amber-950/40 text-amber-300 border border-amber-500/20",
+        danger: "bg-rose-950/40 text-rose-300 border border-rose-500/20",
+        info: "bg-sky-950/40 text-sky-300 border border-sky-500/20",
+        neutral: "bg-white/[0.03] text-slate-400 border border-white/[0.07]",
+        primary: "bg-amber-500/15 text-amber-400 border border-amber-500/25",
       },
     },
     defaultVariants: {
@@ -83,10 +83,11 @@ export function StatusBadge({ status, showIcon = true, className, ...props }: St
 
   return (
     <span className={cn(badgeVariants({ variant }), className)} {...props}>
-      {showIcon && <IconComponent className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}
+      {showIcon && <IconComponent className="h-2.5 w-2.5 flex-shrink-0" aria-hidden="true" />}
       <span>{label}</span>
     </span>
   );
 }
 
 export { badgeVariants };
+

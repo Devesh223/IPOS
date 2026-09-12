@@ -20,7 +20,7 @@ export default async function WorkspaceLayout({
 
   return (
     <AppProvider initialSession={session}>
-      <div className="flex h-screen flex-col bg-brand-main text-brand-light overflow-hidden">
+      <div className="flex h-screen flex-col bg-[#030706] text-slate-100 overflow-hidden select-text">
         {/* Topbar with authenticated session identity */}
         <Topbar session={session} />
 
@@ -30,8 +30,8 @@ export default async function WorkspaceLayout({
           <Sidebar role={session.role} />
 
           {/* Dynamic Viewport */}
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-brand-main-dark/50">
-            <div className="mx-auto max-w-7xl">{children}</div>
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-7 bg-[#020504]">
+            <div className="mx-auto max-w-7xl w-full">{children}</div>
           </main>
         </div>
 
@@ -42,3 +42,4 @@ export default async function WorkspaceLayout({
     </AppProvider>
   );
 }
+

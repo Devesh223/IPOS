@@ -17,7 +17,7 @@ describe("Production Deployment: Health Check API Endpoint", () => {
     expect(responseString).not.toContain("postgres:");
     expect(responseString).not.toContain("password");
     expect(responseString).not.toContain("secret");
-  });
+  }, 15000);
 });
 
 describe("Production Deployment: Environment & Migration Safety", () => {

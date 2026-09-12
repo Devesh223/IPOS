@@ -53,12 +53,7 @@ describe("Production Security Audit: Multi-Tenant IDOR & Tenant Isolation", () =
       amount: 5000000,
     };
 
-    function assertInvoiceAccess(invoiceWorkspaceId: string, userWorkspaceId: string) {
-      if (invoiceWorkspaceId !== userWorkspaceId) {
-        throw new AuthorizationError("UNAUTHORIZED: Entity does not belong to active workspace.", "Invoice");
-      }
-    }
-
-    expect(() => assertInvoiceAccess(targetInvoice.workspaceId, session.workspaceId)).toThrowError(AuthorizationError);
+    const isInvoiceWorkspaceMatch = targetInvoice.workspaceId === session.workspaceId;
+    expect(isInvoiceWorkspaceMatch).toBe(false);
   });
 });

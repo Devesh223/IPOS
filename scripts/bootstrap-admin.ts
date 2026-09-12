@@ -9,11 +9,16 @@ export interface BootstrapAdminOptions {
   password?: string;
   name?: string;
   workspaceName?: string;
+  isTestMode?: boolean;
 }
 
 export async function bootstrapAdmin(options: BootstrapAdminOptions = {}) {
   const email = (options.email || process.env.ADMIN_EMAIL || "admin@indianpixel.com").trim().toLowerCase();
-  const password = options.password || process.env.ADMIN_PASSWORD || "StudioAdmin2026!";
+  const isTest = options.isTestMode !== undefined ? options.isTestMode : process.env.NODE_ENV === "test";
+  const password = options.password || process.env.ADMIN_PASSWORD || (isTest ? "TestAdminPassword123!" : undefined);
+  if (!password) {
+    throw new Error("SECURITY ERROR: ADMIN_PASSWORD environment variable is required to bootstrap an admin user.");
+  }
   const name = options.name || process.env.ADMIN_NAME || "Root Super Administrator";
   const workspaceName = options.workspaceName || process.env.WORKSPACE_NAME || "Indian Pixel Studio";
 

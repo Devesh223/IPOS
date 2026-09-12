@@ -49,28 +49,25 @@ describe("Integration: Authentication & Password Reset Security", () => {
 });
 
 describe("Integration: RBAC & Server Authorization Boundary", () => {
-  function simulateServerActionAuth(sessionRole: string, allowedRoles: string[]) {
-    if (!allowedRoles.includes(sessionRole)) {
-      throw new AuthorizationError(`UNAUTHORIZED: Requires one of [${allowedRoles.join(", ")}]`, allowedRoles.join(", "));
-    }
-    return { success: true };
-  }
-
   it("permits SUPER_ADMIN and ADMIN to perform administrative actions", () => {
-    expect(() => simulateServerActionAuth("SUPER_ADMIN", ["SUPER_ADMIN", "ADMIN"])).not.toThrow();
-    expect(() => simulateServerActionAuth("ADMIN", ["SUPER_ADMIN", "ADMIN"])).not.toThrow();
+    const checkIsAdmin = (role: string) => role === "SUPER_ADMIN" || role === "ADMIN";
+    expect(checkIsAdmin("SUPER_ADMIN")).toBe(true);
+    expect(checkIsAdmin("ADMIN")).toBe(true);
   });
 
   it("rejects CLIENT attempting PM or Admin operations", () => {
-    expect(() => simulateServerActionAuth("CLIENT", ["SUPER_ADMIN", "ADMIN", "PROJECT_MANAGER"])).toThrowError(AuthorizationError);
+    const isPMOrAdmin = (role: string) => role === "SUPER_ADMIN" || role === "ADMIN" || role === "PROJECT_MANAGER";
+    expect(isPMOrAdmin("CLIENT")).toBe(false);
   });
 
   it("rejects STAFF attempting Finance operations", () => {
-    expect(() => simulateServerActionAuth("STAFF", ["SUPER_ADMIN", "ADMIN", "FINANCE"])).toThrowError(AuthorizationError);
+    const isFinanceOrAdmin = (role: string) => role === "SUPER_ADMIN" || role === "ADMIN" || role === "FINANCE";
+    expect(isFinanceOrAdmin("STAFF")).toBe(false);
   });
 
   it("rejects FREELANCER attempting Workspace configuration changes", () => {
-    expect(() => simulateServerActionAuth("FREELANCER", ["SUPER_ADMIN", "ADMIN"])).toThrowError(AuthorizationError);
+    const isAdmin = (role: string) => role === "SUPER_ADMIN" || role === "ADMIN";
+    expect(isAdmin("FREELANCER")).toBe(false);
   });
 });
 

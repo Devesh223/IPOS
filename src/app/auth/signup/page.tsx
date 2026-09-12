@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signupAction } from "@/actions/auth";
-import { Lock, Mail, User, Building2, ArrowRight, AlertCircle } from "lucide-react";
+import { Lock, Mail, User, Building2, ArrowRight, AlertCircle, Sparkles, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SignupPage() {
@@ -36,40 +36,40 @@ export default function SignupPage() {
         setIsLoading(false);
       }
     } catch {
-      setErrorMessage("Signup failed due to network or server error. Please retry.");
+      setErrorMessage("Registration failed due to network or server error. Please retry.");
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-main-dark flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="glow-ambient" />
+    <div className="min-h-screen bg-[#030706] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden text-xs font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.08),rgba(255,255,255,0))] pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2 z-10">
-        <div className="mx-auto h-12 w-12 rounded-lg bg-gradient-to-br from-brand-cta to-amber-700 flex items-center justify-center shadow-amber-glow">
-          <span className="font-heading font-bold text-black text-xl tracking-wider">IP</span>
+        <div className="mx-auto h-11 w-11 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+          <span className="font-heading font-bold text-amber-400 text-lg tracking-wider">IP</span>
         </div>
-        <h2 className="text-2xl font-bold font-heading text-brand-light tracking-tight">
-          Initialize Agency Workspace
-        </h2>
-        <p className="text-xs text-brand-counter font-sans">
-          Deploy your studio’s single source of truth for projects, team scoping, and gated approvals.
+        <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-100 tracking-tight">
+          Studio Founder Setup
+        </h1>
+        <p className="text-xs text-slate-400 font-sans max-w-sm mx-auto">
+          Initialize your studio workspace. Team members and clients should use their invitation email links.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-brand-dark/95 py-8 px-6 shadow-elevation-3 border border-white/10 rounded-xl sm:px-10 backdrop-blur-md space-y-6">
+        <div className="bg-[#060D0C] py-8 px-6 shadow-xl border border-white/[0.08] rounded-xl sm:px-10 space-y-5">
           {errorMessage && (
-            <div className="p-3.5 rounded-md bg-red-950/60 border border-status-danger/40 text-red-200 text-xs flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-status-danger flex-shrink-0 mt-0.5" />
+            <div className="p-3 rounded bg-red-950/60 border border-red-800/40 text-red-200 text-xs flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs font-sans">
             <div>
-              <label className="font-semibold text-brand-light block mb-1">
-                Your Full Name (Studio Founder)
+              <label className="font-semibold text-slate-200 block mb-1">
+                Founder Full Name
               </label>
               <div className="relative">
                 <input
@@ -78,14 +78,14 @@ export default function SignupPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Krishna Mishra"
-                  className="w-full rounded-md border border-white/10 bg-brand-main-dark px-3.5 py-2.5 text-brand-light placeholder:text-brand-counter/40 focus:outline-none focus:ring-1 focus:ring-brand-cta text-xs"
+                  className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3.5 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500/40 text-xs"
                 />
-                <User className="h-4 w-4 text-brand-counter/60 absolute right-3 top-3 pointer-events-none" />
+                <User className="h-4 w-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-brand-light block mb-1">
+              <label className="font-semibold text-slate-200 block mb-1">
                 Agency Studio Name
               </label>
               <div className="relative">
@@ -95,14 +95,14 @@ export default function SignupPage() {
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   placeholder="e.g. Indian Pixel Studio"
-                  className="w-full rounded-md border border-white/10 bg-brand-main-dark px-3.5 py-2.5 text-brand-light placeholder:text-brand-counter/40 focus:outline-none focus:ring-1 focus:ring-brand-cta text-xs"
+                  className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3.5 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500/40 text-xs"
                 />
-                <Building2 className="h-4 w-4 text-brand-counter/60 absolute right-3 top-3 pointer-events-none" />
+                <Building2 className="h-4 w-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-brand-light block mb-1">
+              <label className="font-semibold text-slate-200 block mb-1">
                 Work Email Address
               </label>
               <div className="relative">
@@ -112,15 +112,15 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="krishna@indianpixel.com"
-                  className="w-full rounded-md border border-white/10 bg-brand-main-dark px-3.5 py-2.5 text-brand-light placeholder:text-brand-counter/40 focus:outline-none focus:ring-1 focus:ring-brand-cta text-xs"
+                  className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3.5 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500/40 text-xs font-mono"
                 />
-                <Mail className="h-4 w-4 text-brand-counter/60 absolute right-3 top-3 pointer-events-none" />
+                <Mail className="h-4 w-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-brand-light block mb-1">
-                Master Security Password (Min 8 Characters)
+              <label className="font-semibold text-slate-200 block mb-1">
+                Master Password (Min. 8 Characters)
               </label>
               <div className="relative">
                 <input
@@ -130,9 +130,9 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full rounded-md border border-white/10 bg-brand-main-dark px-3.5 py-2.5 text-brand-light placeholder:text-brand-counter/40 focus:outline-none focus:ring-1 focus:ring-brand-cta text-xs"
+                  className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3.5 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500/40 text-xs"
                 />
-                <Lock className="h-4 w-4 text-brand-counter/60 absolute right-3 top-3 pointer-events-none" />
+                <Lock className="h-4 w-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
@@ -143,15 +143,15 @@ export default function SignupPage() {
               isLoading={isLoading}
               className="w-full h-10 text-xs font-semibold mt-2"
             >
-              <span>Create Studio & Begin Onboarding</span>
+              <span>Initialize Studio Workspace</span>
               <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </Button>
           </form>
 
-          <div className="pt-4 border-t border-white/10 text-center text-xs text-brand-counter">
+          <div className="pt-4 border-t border-white/[0.06] text-center text-xs text-slate-400">
             <span>Already have an active account? </span>
-            <Link href="/auth/login" className="text-brand-cta font-semibold hover:underline">
-              Log in
+            <Link href="/auth/login" className="text-amber-400 font-semibold hover:underline font-mono">
+              Sign in
             </Link>
           </div>
         </div>

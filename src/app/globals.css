@@ -6,80 +6,43 @@
 
 @layer base {
   :root {
-    /* Indian Pixel Studio Aesthetic — Calm, Dark, Neutral-First */
-    --color-main: #060D0C;
-    --color-main-dark: #030807;
-    --color-dark: #0A1412;
-    --color-counter: #94A3B8;
-    --color-light: #F8FAFC;
+    /* Indian Pixel Studio Aesthetic — Calm, Dark, Editorial Precision */
+    --color-main: #030706;
+    --color-main-dark: #020504;
+    --color-dark: #060D0C;
+    --color-counter: #8E9DA8;
+    --color-light: #F4F6F8;
     --color-cta: #F59E0B;
 
-    --background: 170 50% 3%; /* #060D0C */
-    --foreground: 210 40% 98%; /* #F8FAFC */
+    --background: 165 40% 2%; /* #030706 */
+    --foreground: 210 20% 97%; /* #F4F6F8 */
     
-    --card: 170 40% 5%; /* #0A1412 */
-    --card-foreground: 210 40% 98%;
+    --card: 168 35% 4%; /* #060D0C */
+    --card-foreground: 210 20% 97%;
 
-    --popover: 170 40% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 168 35% 5%;
+    --popover-foreground: 210 20% 97%;
 
-    --primary: 38 92% 50%; /* #F59E0B Warm Amber CTA */
-    --primary-foreground: 170 50% 3%;
+    --primary: 38 92% 50%; /* #F59E0B Warm Amber */
+    --primary-foreground: 165 40% 2%;
 
-    --secondary: 215 16% 47%; /* Slate */
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 215 16% 47%;
+    --secondary-foreground: 210 20% 97%;
 
-    --muted: 170 30% 9%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 168 25% 7%;
+    --muted-foreground: 215 15% 62%;
 
-    --accent: 170 35% 10%;
+    --accent: 168 30% 8%;
     --accent-foreground: 38 92% 50%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 210 20% 97%;
 
-    --border: 170 20% 12%;
-    --input: 170 20% 10%;
+    --border: 168 15% 12%;
+    --input: 168 15% 10%;
     --ring: 38 92% 50%;
 
     --radius: 6px;
-  }
-
-  .light-mode {
-    --color-main: #F8FAFC;
-    --color-main-dark: #F1F5F9;
-    --color-dark: #E2E8F0;
-    --color-counter: #475569;
-    --color-light: #0F172A;
-    --color-cta: #D97706;
-
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 215 16% 47%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-
-    --accent: 210 40% 96%;
-    --accent-foreground: 38 92% 50%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 38 92% 50%;
   }
 
   * {
@@ -98,8 +61,8 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Montserrat Alternates', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-weight: 400;
-    letter-spacing: -0.025em;
+    font-weight: 500;
+    letter-spacing: -0.02em;
   }
 
   code, kbd, samp, pre {
@@ -109,8 +72,8 @@
 
 /* Custom Studio UI Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -118,29 +81,47 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.16);
 }
 
-/* Subtle Studio Surface Utilities */
-.studio-surface {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+/* 3-Tier Surface Hierarchy Utilities */
+.studio-canvas {
+  background-color: #030706;
+}
+
+.studio-section {
+  background-color: #060D0C;
   border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.studio-surface-hover {
-  transition: all 0.15s ease-in-out;
+.studio-surface {
+  background-color: #081310;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.studio-surface-hover:hover {
+.studio-surface-interactive {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.studio-surface-interactive:hover {
   border-color: rgba(245, 158, 11, 0.3);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background-color: #0D1C18;
 }
 
-.studio-glow-amber {
-  box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15);
+/* Accessibility: Respect Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
+

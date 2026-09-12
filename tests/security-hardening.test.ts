@@ -3,45 +3,47 @@ import { AuthorizationError, BusinessRuleError } from "../src/domain/errors";
 import { validateFileMetadata } from "../src/domain/files/service";
 import { assertInvoiceCanReceivePayment } from "../src/domain/finance/invoice-rules";
 
+import { getProjectRoleForUser, resolveProjectPermissions } from "../src/lib/session";
+
 describe("Security Hardening: Cross-Workspace & IDOR Protection", () => {
   it("prevents Workspace A user from mutating or accessing Workspace B entity", () => {
     const session = { workspaceId: "ws-indian-pixel", role: "ADMIN" };
-    const targetEntity = { id: "proj-999", workspaceId: "ws-other-agency", name: "Secret Brand" };
+    const targetEntityWorkspaceId = "ws-other-agency";
 
-    function assertTenantOwnership(entityWorkspaceId: string, sessionWorkspaceId: string) {
-      if (entityWorkspaceId !== sessionWorkspaceId) {
-        throw new AuthorizationError("UNAUTHORIZED: Access across workspace boundaries is prohibited.", "WorkspaceOwner");
-      }
-    }
-
-    expect(() => assertTenantOwnership(targetEntity.workspaceId, session.workspaceId)).toThrowError(AuthorizationError);
+    const isSameWorkspace = session.workspaceId === targetEntityWorkspaceId;
+    expect(isSameWorkspace).toBe(false);
   });
 
   it("rejects client-supplied role tampering or privilege escalation", () => {
-    const maliciousPayload = {
-      role: "SUPER_ADMIN", // Attacker sends elevated role in form body
-      workspaceId: "ws-other-agency",
+    const sessionContext = {
+      user: { id: "user-1", email: "user@test.com", name: "User", globalRole: "STAFF" as any },
+      workspaceId: "ws-1",
+      workspaceName: "Test",
+      role: "STAFF" as any,
+      isSuperAdmin: false,
+      isAdmin: false,
+      isFinance: false,
+      isPM: false,
+      isStaff: true,
+      isFreelancer: false,
+      isClient: false,
     };
 
-    function resolveServerRole(serverMembershipRole: string, _clientPayloadRole: string) {
-      // Server MUST exclusively use DB membership role and ignore payload
-      return serverMembershipRole;
-    }
+    // Client attempts to pass role="SUPER_ADMIN" in request body
+    const payloadRole = "SUPER_ADMIN";
+    // Server resolution relies on DB session context, ignoring client payload
+    const effectiveRole = sessionContext.role;
 
-    const effectiveRole = resolveServerRole("STAFF", maliciousPayload.role);
     expect(effectiveRole).toBe("STAFF");
-    expect(effectiveRole).not.toBe("SUPER_ADMIN");
+    expect(effectiveRole).not.toBe(payloadRole);
   });
 
-  it("locks out suspended users immediately regardless of valid token existence", () => {
-    const user = { id: "user-101", isSuspended: true };
+  it("locks out suspended users immediately regardless of valid token existence", async () => {
+    const suspendedUser = { id: "user-suspended", isSuspended: true };
+    const activeUser = { id: "user-active", isSuspended: false };
 
-    function validateSessionUser(u: { isSuspended: boolean }) {
-      if (u.isSuspended) return null;
-      return u;
-    }
-
-    expect(validateSessionUser(user)).toBeNull();
+    expect(suspendedUser.isSuspended ? null : suspendedUser).toBeNull();
+    expect(activeUser.isSuspended ? null : activeUser).not.toBeNull();
   });
 });
 

@@ -76,16 +76,12 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   const isAdmin = isSuperAdmin || globalRole === GlobalRole.ADMIN;
   const isFinance = globalRole === GlobalRole.FINANCE || isAdmin;
 
-  // Project level role
-  const projectRole = user.projectRoles[0]?.role;
-  const isPM = projectRole === ProjectRole.PROJECT_MANAGER || isAdmin;
-  const isStaff =
-    projectRole === ProjectRole.DESIGNER ||
-    projectRole === ProjectRole.DEVELOPER ||
-    globalRole === GlobalRole.STAFF ||
-    isPM;
-  const isFreelancer = projectRole === ProjectRole.FREELANCER;
-  const isClient = projectRole === ProjectRole.CLIENT || globalRole === GlobalRole.VIEWER;
+  // Global workspace role derivations (do NOT derive global session authority from arbitrary user.projectRoles[0])
+  const defaultProjectRole = user.projectRoles[0]?.role;
+  const isPM = isAdmin;
+  const isStaff = globalRole === GlobalRole.STAFF || isPM;
+  const isFreelancer = false;
+  const isClient = globalRole === GlobalRole.VIEWER;
 
   return {
     user: {
@@ -98,7 +94,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     workspaceId: membership.workspaceId,
     workspaceName: membership.workspace.name,
     role: globalRole,
-    actingProjectRole: projectRole,
+    actingProjectRole: defaultProjectRole,
     isSuperAdmin,
     isAdmin,
     isFinance,
@@ -118,4 +114,66 @@ export async function requireSession(): Promise<SessionContext> {
     throw new Error("UNAUTHENTICATED: Valid session required.");
   }
   return ctx;
+}
+
+/**
+ * Resolves the project-scoped role for a given user in a specific project.
+ */
+export async function getProjectRoleForUser(
+  userId: string,
+  projectId: string
+): Promise<ProjectRole | null> {
+  const member = await prisma.projectMember.findUnique({
+    where: {
+      projectId_userId: {
+        projectId,
+        userId,
+      },
+    },
+  });
+
+  return member?.role ?? null;
+}
+
+/**
+ * Resolves project-scoped permissions for a specific project without cross-project bleed.
+ */
+export async function resolveProjectPermissions(
+  session: SessionContext,
+  projectId: string
+): Promise<{
+  projectRole: ProjectRole | null;
+  isPM: boolean;
+  isStaff: boolean;
+  isFreelancer: boolean;
+  isClient: boolean;
+}> {
+  if (session.isAdmin) {
+    return {
+      projectRole: ProjectRole.PROJECT_MANAGER,
+      isPM: true,
+      isStaff: true,
+      isFreelancer: false,
+      isClient: false,
+    };
+  }
+
+  const projectRole = await getProjectRoleForUser(session.user.id, projectId);
+
+  const isPM = projectRole === ProjectRole.PROJECT_MANAGER;
+  const isStaff =
+    projectRole === ProjectRole.DESIGNER ||
+    projectRole === ProjectRole.DEVELOPER ||
+    session.role === GlobalRole.STAFF ||
+    isPM;
+  const isFreelancer = projectRole === ProjectRole.FREELANCER;
+  const isClient = projectRole === ProjectRole.CLIENT || session.role === GlobalRole.VIEWER;
+
+  return {
+    projectRole,
+    isPM,
+    isStaff,
+    isFreelancer,
+    isClient,
+  };
 }

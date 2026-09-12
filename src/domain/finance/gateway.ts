@@ -41,14 +41,22 @@ export class RazorpayGatewayProvider implements PaymentGatewayProvider {
   private keySecret: string;
 
   constructor(
-    keyId = process.env.RAZORPAY_KEY_ID || "rzp_test_key",
-    keySecret = process.env.RAZORPAY_KEY_SECRET || "rzp_test_secret"
+    keyId = process.env.RAZORPAY_KEY_ID || "",
+    keySecret = process.env.RAZORPAY_KEY_SECRET || ""
   ) {
     this.keyId = keyId;
     this.keySecret = keySecret;
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.keyId && this.keySecret);
+  }
+
   async createOrder(params: CreatePaymentOrderParams): Promise<PaymentOrderResult> {
+    if (!this.isConfigured()) {
+      throw new Error("PAYMENT_GATEWAY_NOT_CONFIGURED: Razorpay credentials are not configured.");
+    }
+
     logger.info("payment.gateway.request", {
       provider: "razorpay",
       invoiceNumber: params.invoiceNumber,
@@ -95,6 +103,10 @@ export class RazorpayGatewayProvider implements PaymentGatewayProvider {
   }
 
   async processRefund(params: RefundGatewayParams): Promise<RefundGatewayResult> {
+    if (!this.isConfigured()) {
+      throw new Error("PAYMENT_GATEWAY_NOT_CONFIGURED: Razorpay credentials are not configured.");
+    }
+
     const refundId = `rfnd_${Math.random().toString(36).substring(2, 14)}`;
     logger.info("payment.gateway.refund", {
       provider: "razorpay",
@@ -113,11 +125,19 @@ export class RazorpayGatewayProvider implements PaymentGatewayProvider {
 export class StripeGatewayProvider implements PaymentGatewayProvider {
   private secretKey: string;
 
-  constructor(secretKey = process.env.STRIPE_SECRET_KEY || "sk_test_mock") {
+  constructor(secretKey = process.env.STRIPE_SECRET_KEY || "") {
     this.secretKey = secretKey;
   }
 
+  isConfigured(): boolean {
+    return Boolean(this.secretKey);
+  }
+
   async createOrder(params: CreatePaymentOrderParams): Promise<PaymentOrderResult> {
+    if (!this.isConfigured()) {
+      throw new Error("PAYMENT_GATEWAY_NOT_CONFIGURED: Stripe credentials are not configured.");
+    }
+
     logger.info("payment.gateway.request", {
       provider: "stripe",
       invoiceNumber: params.invoiceNumber,
@@ -142,19 +162,18 @@ export class StripeGatewayProvider implements PaymentGatewayProvider {
     };
   }
 
-  verifyWebhookSignature(rawBody: string, signature: string, secret: string): boolean {
+  verifyWebhookSignature(rawBody: string, signature: string, secret: string = this.secretKey): boolean {
     if (!rawBody || !signature || !secret) {
       logger.warn("payment.webhook.rejected", { provider: "stripe", reason: "Missing parameters" });
       return false;
     }
 
     try {
-      // Support both standard HMAC-SHA256 and Stripe header formats
       let cleanSignature = signature;
       if (signature.includes("v1=")) {
         const parts = signature.split(",");
-        const v1Part = parts.find((p) => p.startsWith("v1="));
-        if (v1Part) cleanSignature = v1Part.replace("v1=", "");
+        const v1Part = parts.find((p) => p.trim().startsWith("v1="));
+        if (v1Part) cleanSignature = v1Part.trim().replace("v1=", "");
       }
 
       const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
@@ -172,6 +191,10 @@ export class StripeGatewayProvider implements PaymentGatewayProvider {
   }
 
   async processRefund(params: RefundGatewayParams): Promise<RefundGatewayResult> {
+    if (!this.isConfigured()) {
+      throw new Error("PAYMENT_GATEWAY_NOT_CONFIGURED: Stripe credentials are not configured.");
+    }
+
     const refundId = `re_${Math.random().toString(36).substring(2, 14)}`;
     logger.info("payment.gateway.refund", {
       provider: "stripe",

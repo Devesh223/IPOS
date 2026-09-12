@@ -1,7 +1,7 @@
 # 🛡️ Indian Pixel Operating System (OS)
 
 > **Proprietary Operating System for High-End Digital Studios & Creative Agencies.**  
-> Built with Next.js 14 App Router, PostgreSQL (Supabase), Prisma ORM, PBKDF2 Cryptography, and Integer Paise Financial Ledger.
+> Built with Next.js 14 App Router, PostgreSQL (Supabase), Prisma ORM, scrypt Cryptography, and Integer Paise Financial Ledger.
 
 ---
 
@@ -10,7 +10,7 @@
 Indian Pixel OS is engineered as a **server-authoritative, zero-trust digital agency platform** governed by strict business rules and forensic transaction logging:
 
 1. **Authentication & Session Security:**
-   - PBKDF2-SHA512 password hashing with cryptographically unique random salts per password (`src/lib/password.ts`).
+   - Scrypt password hashing with high work factor and cryptographically unique random salts per password (`src/lib/password.ts`).
    - High-entropy 256-bit session tokens stored in PostgreSQL with 30-day expiration and instant suspended-user lockout.
    - Strict HTTP-only, `SameSite: Lax`, and `Secure` session cookies.
    - Sliding-window in-memory rate limiting guard against brute-force login attacks (`src/lib/rate-limit.ts`).

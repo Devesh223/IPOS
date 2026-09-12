@@ -1,6 +1,6 @@
 import React from "react";
 import { getSessionContext } from "@/lib/session";
-import { queryAuditLogs } from "@/domain/audit/service";
+import { getWorkspaceAuditData } from "@/domain/audit/queries";
 import { AuditLogView } from "@/features/audit/AuditLogView";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,15 @@ export const metadata = {
 
 export default async function AuditPage() {
   const session = await getSessionContext();
-  const logs = session ? await queryAuditLogs({ workspaceId: session.workspaceId, limit: 200 }) : [];
+  const data = session ? await getWorkspaceAuditData(session.workspaceId, 250) : undefined;
 
-  return <AuditLogView initialLogs={logs} />;
+  return (
+    <AuditLogView
+      initialLogs={data?.logs}
+      initialActors={data?.actors}
+      initialEntities={data?.entities}
+      initialActions={data?.actions}
+    />
+  );
 }
+

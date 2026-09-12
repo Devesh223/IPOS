@@ -9,6 +9,7 @@ import { SESSION_COOKIE_NAME } from "@/lib/session";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { GlobalRole } from "@prisma/client";
+import { getEmailProvider } from "@/domain/email/service";
 
 export type AuthActionResult = {
   success: boolean;
@@ -269,6 +270,15 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
   });
 
   logger.info("auth.forgot_password.token_created", { email, userId: user.id });
+
+  // Dispatch email token via explicit provider boundary
+  const emailProvider = getEmailProvider();
+  await emailProvider.sendEmail({
+    to: email,
+    subject: "Reset your Indian Pixel Studio password",
+    html: `<p>Please use the reset token to update your password: <strong>${token}</strong></p>`,
+    text: `Reset token: ${token}`,
+  });
 
   return { success: true, redirectTo: `/auth/forgot-password/sent?email=${encodeURIComponent(email)}` };
 }

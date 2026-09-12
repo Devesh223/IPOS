@@ -11,31 +11,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Indian Pixel Brand Palette
+        // Indian Pixel Studio Brand Palette (3-Tier Surface & Obsidian System)
         brand: {
-          main: "#011411", // Deep Obsidian Emerald
-          "main-dark": "#000908", // Sunken Black Green
-          dark: "#021F1B", // Dark Pine Surface
-          surface: "#021F1B",
-          "surface-raised": "#042924",
-          light: "#F8F4ED", // Warm Pearl / Ivory
-          cta: "#FFA400", // Radiant Sunset Amber
-          "cta-hover": "#FFB733",
-          terracotta: "#D56B4A", // Light mode CTA
-          counter: "#ACBEA3", // Soft Sage Muted
+          main: "#030706", // Level 1: Deep Canvas
+          "main-dark": "#020504", // Sunken Viewport Surface
+          dark: "#060D0C", // Level 2: Section Surface
+          surface: "#081310", // Level 3: Interactive Object Surface
+          "surface-raised": "#0D1C18", // Hover / Active Raised Surface
+          light: "#F4F6F8", // Crisp Text Primary
+          cta: "#F59E0B", // Refined Warm Amber Accent
+          "cta-hover": "#D97706",
+          terracotta: "#D56B4A",
+          counter: "#8E9DA8", // Editorial Muted Metadata
         },
-        // Semantic status tokens (Phase 3 EDS)
+        // Semantic status tokens
         status: {
           success: "#10B981",
-          "success-subtle": "rgba(16, 185, 129, 0.12)",
-          warning: "#FFA400",
-          "warning-subtle": "rgba(255, 164, 0, 0.12)",
+          "success-subtle": "rgba(16, 185, 129, 0.10)",
+          "success-border": "rgba(16, 185, 129, 0.22)",
+          warning: "#F59E0B",
+          "warning-subtle": "rgba(245, 158, 11, 0.10)",
+          "warning-border": "rgba(245, 158, 11, 0.22)",
           danger: "#EF4444",
-          "danger-subtle": "rgba(239, 68, 68, 0.12)",
+          "danger-subtle": "rgba(239, 68, 68, 0.10)",
+          "danger-border": "rgba(239, 68, 68, 0.22)",
           info: "#38BDF8",
-          "info-subtle": "rgba(56, 189, 248, 0.12)",
-          neutral: "#ACBEA3",
-          "neutral-subtle": "rgba(172, 190, 163, 0.12)",
+          "info-subtle": "rgba(56, 189, 248, 0.10)",
+          "info-border": "rgba(56, 189, 248, 0.22)",
+          neutral: "#94A3B8",
+          "neutral-subtle": "rgba(148, 163, 184, 0.08)",
+          "neutral-border": "rgba(255, 255, 255, 0.08)",
         },
         // Base UI System Colors
         background: "hsl(var(--background))",
@@ -79,9 +84,11 @@ const config: Config = {
       },
       borderRadius: {
         none: "0px",
-        sm: "4px",
+        xs: "3px",
+        sm: "5px",
         md: "8px",
         lg: "12px",
+        xl: "16px",
         full: "9999px",
       },
       spacing: {
@@ -96,12 +103,12 @@ const config: Config = {
         "4xl": "64px",
       },
       boxShadow: {
-        "elevation-1": "0 2px 8px rgba(0, 0, 0, 0.25)",
-        "elevation-2": "0 8px 24px rgba(0, 0, 0, 0.35)",
-        "elevation-3": "0 16px 40px rgba(0, 0, 0, 0.45)",
-        "elevation-4": "0 24px 64px rgba(0, 0, 0, 0.6)",
-        "amber-glow": "0 0 25px rgba(255, 164, 0, 0.25)",
-        "emerald-glow": "0 0 25px rgba(16, 185, 129, 0.2)",
+        "elevation-1": "0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)",
+        "elevation-2": "0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.07)",
+        "elevation-3": "0 12px 28px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+        "elevation-4": "0 24px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.10)",
+        "subtle-amber": "0 0 0 1px rgba(245, 158, 11, 0.35)",
+        "hairline": "0 0 0 1px rgba(255, 255, 255, 0.07)",
       },
       zIndex: {
         base: "0",
@@ -122,3 +129,4 @@ const config: Config = {
 };
 
 export default config;
+

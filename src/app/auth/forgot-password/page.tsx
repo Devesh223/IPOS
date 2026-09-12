@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forgotPasswordAction } from "@/actions/auth";
-import { Mail, ArrowRight, AlertCircle, ArrowLeft } from "lucide-react";
+import { Mail, ArrowRight, AlertCircle, ArrowLeft, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ForgotPasswordPage() {
@@ -36,30 +36,33 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-main-dark flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="glow-ambient" />
+    <div className="min-h-screen bg-[#030706] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden text-xs font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.08),rgba(255,255,255,0))] pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2 z-10">
-        <h2 className="text-2xl font-bold font-heading text-brand-light tracking-tight">
-          Reset Your Password
-        </h2>
-        <p className="text-xs text-brand-counter font-sans">
-          Enter your registered work email to receive an authorized security reset link.
+        <div className="mx-auto h-11 w-11 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+          <KeyRound className="h-5 w-5 text-amber-400" />
+        </div>
+        <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-100 tracking-tight">
+          Recover Access Credentials
+        </h1>
+        <p className="text-xs text-slate-400 font-sans max-w-sm mx-auto">
+          Enter your registered studio email to receive an authorized security reset link.
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-brand-dark/95 py-8 px-6 shadow-elevation-3 border border-white/10 rounded-xl sm:px-10 backdrop-blur-md space-y-6">
+        <div className="bg-[#060D0C] py-8 px-6 shadow-xl border border-white/[0.08] rounded-xl sm:px-10 space-y-6">
           {errorMessage && (
-            <div className="p-3.5 rounded-md bg-red-950/60 border border-status-danger/40 text-red-200 text-xs flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-status-danger flex-shrink-0 mt-0.5" />
+            <div className="p-3 rounded bg-red-950/60 border border-red-800/40 text-red-200 text-xs flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4 text-xs font-sans">
             <div>
-              <label className="font-semibold text-brand-light block mb-1">
+              <label className="font-semibold text-slate-200 block mb-1">
                 Account Email Address
               </label>
               <div className="relative">
@@ -69,9 +72,9 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@agency.com"
-                  className="w-full rounded-md border border-white/10 bg-brand-main-dark px-3.5 py-2.5 text-brand-light placeholder:text-brand-counter/40 focus:outline-none focus:ring-1 focus:ring-brand-cta text-xs"
+                  className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3.5 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-500/40 text-xs"
                 />
-                <Mail className="h-4 w-4 text-brand-counter/60 absolute right-3 top-3 pointer-events-none" />
+                <Mail className="h-4 w-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
               </div>
             </div>
 
@@ -87,13 +90,13 @@ export default function ForgotPasswordPage() {
             </Button>
           </form>
 
-          <div className="pt-4 border-t border-white/10 text-center">
+          <div className="pt-4 border-t border-white/[0.06] text-center">
             <Link
               href="/auth/login"
-              className="inline-flex items-center gap-1.5 text-xs text-brand-counter hover:text-brand-light font-mono"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 font-mono"
             >
               <ArrowLeft className="h-3 w-3" />
-              <span>Return to Login</span>
+              <span>Return to Studio Sign-in</span>
             </Link>
           </div>
         </div>

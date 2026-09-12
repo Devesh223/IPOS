@@ -3,7 +3,7 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { CheckCircle2, ArrowLeft, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function SentDetails() {
@@ -11,12 +11,12 @@ function SentDetails() {
   const email = searchParams.get("email") || "your email";
 
   return (
-    <div className="space-y-1.5">
-      <h2 className="text-xl font-bold font-heading text-brand-light">
-        Recovery Link Dispatched
+    <div className="space-y-2">
+      <h2 className="text-lg font-bold font-heading text-slate-100">
+        Recovery Instructions Dispatched
       </h2>
-      <p className="text-brand-counter leading-relaxed">
-        If an account matches <strong>{email}</strong>, a cryptographically signed reset token has been sent to your inbox.
+      <p className="text-slate-400 text-xs leading-relaxed">
+        If an account matches <strong className="text-slate-200">{email}</strong>, a cryptographically signed reset token has been dispatched to your inbox.
       </p>
     </div>
   );
@@ -24,20 +24,20 @@ function SentDetails() {
 
 export default function ForgotPasswordSentPage() {
   return (
-    <div className="min-h-screen bg-brand-main-dark flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="glow-ambient" />
+    <div className="min-h-screen bg-[#030706] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden text-xs font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.08),rgba(255,255,255,0))] pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-brand-dark/95 py-8 px-6 shadow-elevation-3 border border-white/10 rounded-xl sm:px-10 backdrop-blur-md space-y-6 text-center text-xs">
-          <div className="mx-auto h-12 w-12 rounded-full bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center">
-            <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+        <div className="bg-[#060D0C] py-8 px-6 shadow-xl border border-white/[0.08] rounded-xl sm:px-10 space-y-5 text-center">
+          <div className="mx-auto h-11 w-11 rounded-lg bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center">
+            <MailCheck className="h-5 w-5 text-emerald-400" />
           </div>
 
-          <Suspense fallback={<div className="h-12 flex items-center justify-center text-xs text-brand-counter">Verifying dispatch...</div>}>
+          <Suspense fallback={<div className="h-12 flex items-center justify-center text-xs text-slate-500">Verifying dispatch...</div>}>
             <SentDetails />
           </Suspense>
 
-          <div className="p-3 rounded-md bg-white/5 border border-white/5 text-[11px] text-brand-counter font-mono">
+          <div className="p-3 rounded-md bg-[#030706] border border-white/[0.04] text-[11px] text-slate-400 font-mono">
             Check your spam folder if the link does not arrive within 60 seconds.
           </div>
 
@@ -45,7 +45,7 @@ export default function ForgotPasswordSentPage() {
             <Link href="/auth/login">
               <Button variant="secondary" size="md" className="w-full text-xs">
                 <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                <span>Back to Login</span>
+                <span>Return to Studio Login</span>
               </Button>
             </Link>
           </div>

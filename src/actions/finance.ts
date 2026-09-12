@@ -372,7 +372,7 @@ export async function voidInvoiceAction(invoiceId: string, voidReason: string) {
     throw new Error(`Invoice with ID '${invoiceId}' was not found in this workspace.`);
   }
 
-  const activePayments = invoice.payments.filter((p) => p.status !== PaymentStatus.REFUNDED);
+  const activePayments = invoice.payments.filter((p) => p.status !== PaymentStatus.REFUNDED && !p.refundId);
   assertInvoiceCanBeVoided(invoice.status, activePayments.length, voidReason);
 
   await prisma.$transaction(async (tx) => {
@@ -436,8 +436,15 @@ export async function recordRefundAction(input: RecordRefundInput) {
     throw new Error(`Original payment with ID '${input.originalPaymentId}' was not found.`);
   }
 
-  if (input.refundAmountInPaise > originalPayment.amount) {
-    throw new Error("Refund amount cannot exceed the original payment amount.");
+  // Calculate cumulative prior refunds against this payment
+  const priorRefunds = await prisma.payment.findMany({
+    where: { refundId: originalPayment.id, workspaceId: session.workspaceId },
+  });
+  const totalPriorRefunded = priorRefunds.reduce((sum, r) => sum + r.amount, 0);
+  const totalRefundAmount = totalPriorRefunded + input.refundAmountInPaise;
+
+  if (totalRefundAmount > originalPayment.amount) {
+    throw new Error(`Cumulative refund amount (${totalRefundAmount} paise) exceeds original payment amount (${originalPayment.amount} paise).`);
   }
 
   const invoice = originalPayment.invoice;
@@ -448,6 +455,8 @@ export async function recordRefundAction(input: RecordRefundInput) {
       : newInvoicePaidAmount >= invoice.amount
       ? InvoiceStatus.PAID
       : InvoiceStatus.PARTIALLY_PAID;
+
+  const isFullyRefunded = totalRefundAmount >= originalPayment.amount;
 
   const result = await prisma.$transaction(async (tx) => {
     // 1. Create linked offsetting Refund record (Rule PAY-4)
@@ -467,7 +476,15 @@ export async function recordRefundAction(input: RecordRefundInput) {
       },
     });
 
-    // 2. Adjust invoice paidAmount
+    // 2. Mark original payment status as REFUNDED if fully refunded
+    if (isFullyRefunded) {
+      await tx.payment.update({
+        where: { id: originalPayment.id },
+        data: { status: PaymentStatus.REFUNDED },
+      });
+    }
+
+    // 3. Adjust invoice paidAmount
     await tx.invoice.update({
       where: { id: invoice.id },
       data: {
@@ -508,13 +525,18 @@ export async function recordRefundAction(input: RecordRefundInput) {
  * Handles incoming payment webhooks with cryptographic HMAC signature verification and persistent DB idempotency.
  */
 export async function processPaymentWebhookAction(input: WebhookProcessInput) {
+  const webhookSecret = input.webhookSecret || process.env.PAYMENT_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    throw new Error("SECURITY ERROR: Payment webhook secret is not configured.");
+  }
+
   const gateway = getPaymentGateway();
 
   // 1. Verify HMAC Signature
   const isValidSignature = gateway.verifyWebhookSignature(
     input.rawBody,
     input.signature,
-    input.webhookSecret || process.env.PAYMENT_WEBHOOK_SECRET || "webhook_secret_mock"
+    webhookSecret
   );
 
   if (!isValidSignature) {

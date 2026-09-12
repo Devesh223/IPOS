@@ -4,26 +4,28 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-cta focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none",
+  "inline-flex items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500/50 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer tracking-tight",
   {
     variants: {
       variant: {
         primary:
-          "bg-brand-cta text-black font-semibold hover:bg-brand-cta-hover active:opacity-90 shadow-sm",
+          "bg-amber-400 text-black font-semibold hover:bg-amber-300 active:scale-[0.98] shadow-xs",
         secondary:
-          "border border-white/15 bg-white/5 text-brand-light hover:bg-white/10 hover:border-white/25 active:bg-white/15",
+          "border border-white/[0.10] bg-white/[0.03] text-slate-200 hover:bg-white/[0.08] hover:border-white/[0.18] active:bg-white/[0.10]",
         ghost:
-          "text-brand-counter hover:text-brand-light hover:bg-white/5 active:bg-white/10",
+          "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] active:bg-white/[0.08]",
         destructive:
-          "bg-status-danger text-white hover:bg-red-600 active:opacity-90 shadow-sm",
+          "border border-red-900/40 bg-red-950/40 text-red-300 hover:bg-red-900/60 hover:text-red-100 active:scale-[0.98]",
+        outline:
+          "border border-white/[0.12] text-slate-200 hover:bg-white/[0.04] hover:border-white/[0.20]",
         glass:
-          "bg-brand-dark/80 backdrop-blur-md border border-white/10 text-brand-light hover:border-brand-cta/50 hover:bg-brand-dark",
+          "bg-[#060D0C]/90 backdrop-blur-md border border-white/[0.08] text-slate-200 hover:border-amber-500/30 hover:bg-[#081310]",
       },
       size: {
-        sm: "h-7 px-3 text-xs rounded-sm gap-1.5 min-w-[24px]",
-        md: "h-9 px-4 text-sm rounded-md gap-2 min-w-[36px]",
-        lg: "h-11 px-6 text-base rounded-md gap-2.5 min-w-[44px]",
-        icon: "h-9 w-9 p-0 rounded-md",
+        sm: "h-7 px-2.5 text-xs rounded gap-1.5 min-w-[24px]",
+        md: "h-8.5 px-3.5 text-xs rounded-md gap-2 min-w-[32px]",
+        lg: "h-10 px-5 text-sm rounded-md gap-2 min-w-[40px]",
+        icon: "h-8 w-8 p-0 rounded-md",
       },
     },
     defaultVariants: {
@@ -51,7 +53,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin text-current" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-current mr-1.5" />
             <span className="opacity-80">Loading...</span>
           </>
         ) : (
@@ -64,3 +66,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 export { Button, buttonVariants };
+

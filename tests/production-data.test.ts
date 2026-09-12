@@ -17,35 +17,21 @@ describe("Production Data: Admin Bootstrap & Password Cryptography", () => {
     expect(verifyPassword("IncorrectPassword123", hash)).toBe(false);
   });
 
-  it("idempotency simulation: existing admin account preservation logic", () => {
-    const existingUsers = [
-      { id: "usr_admin_1", email: "admin@indianpixel.com", passwordHash: "existing_hash_salt:key" },
-    ];
-
-    function simulateBootstrap(targetEmail: string) {
-      const found = existingUsers.find((u) => u.email === targetEmail.toLowerCase());
-      if (found) {
-        return {
-          status: "EXISTING",
-          userId: found.id,
-          email: found.email,
-        };
+  it("bootstrapAdmin fails explicitly when ADMIN_PASSWORD is missing in non-test env", async () => {
+    const origAdminPassword = process.env.ADMIN_PASSWORD;
+    try {
+      delete process.env.ADMIN_PASSWORD;
+      const { bootstrapAdmin } = await import("../scripts/bootstrap-admin");
+      await expect(bootstrapAdmin({ email: "test@example.com", isTestMode: false })).rejects.toThrowError(
+        "SECURITY ERROR: ADMIN_PASSWORD environment variable is required to bootstrap an admin user."
+      );
+    } finally {
+      if (origAdminPassword !== undefined) {
+        process.env.ADMIN_PASSWORD = origAdminPassword;
+      } else {
+        delete process.env.ADMIN_PASSWORD;
       }
-      return {
-        status: "CREATED",
-        userId: "usr_new",
-        email: targetEmail,
-      };
     }
-
-    // First attempt on existing admin
-    const res1 = simulateBootstrap("admin@indianpixel.com");
-    expect(res1.status).toBe("EXISTING");
-    expect(res1.userId).toBe("usr_admin_1");
-
-    // Second attempt on non-existing admin
-    const res2 = simulateBootstrap("new_superadmin@indianpixel.com");
-    expect(res2.status).toBe("CREATED");
   });
 });
 

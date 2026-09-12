@@ -10,7 +10,7 @@ This document defines the strict, authoritative, step-by-step deployment procedu
 * **Runtime:** Node.js 18+ / 20+ LTS
 * **Database:** PostgreSQL on Supabase (29 normalized models)
 * **ORM:** Prisma Client v5.20+
-* **Authentication:** Server-authoritative PBKDF2-SHA512 hashing, HTTP-only secure session cookies
+* **Authentication:** Server-authoritative scrypt hashing with random salt, HTTP-only secure session cookies
 * **Hosting Platforms:** Vercel, Node.js Container, or AWS ECS/Fargate
 
 ---

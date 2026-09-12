@@ -13,7 +13,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
     <div
       role="tablist"
       className={cn(
-        "flex items-center space-x-1 border-b border-white/10 overflow-x-auto scrollbar-none",
+        "flex items-center space-x-1 border-b border-white/[0.08] overflow-x-auto scrollbar-none",
         className
       )}
     >
@@ -26,20 +26,20 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-150 border-b-2 -mb-px whitespace-nowrap",
+              "flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium transition-all duration-150 border-b-2 -mb-px whitespace-nowrap cursor-pointer",
               isActive
-                ? "border-brand-cta text-brand-cta font-semibold"
-                : "border-transparent text-brand-counter hover:text-brand-light hover:border-white/20"
+                ? "border-amber-400 text-amber-400 font-semibold"
+                : "border-transparent text-slate-400 hover:text-slate-200 hover:border-white/20"
             )}
           >
             <span>{tab.label}</span>
             {typeof tab.count === "number" && (
               <span
                 className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[11px] font-mono",
+                  "px-1.5 py-0.5 rounded text-[10px] font-mono",
                   isActive
-                    ? "bg-brand-cta/20 text-brand-cta font-semibold"
-                    : "bg-white/10 text-brand-counter"
+                    ? "bg-amber-500/20 text-amber-300 font-semibold"
+                    : "bg-white/[0.06] text-slate-400"
                 )}
               >
                 {tab.count}
@@ -51,3 +51,4 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
     </div>
   );
 }
+

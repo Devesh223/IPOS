@@ -15,18 +15,18 @@ import {
   Globe,
   Plus,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Form State
-  const [studioName, setStudioName] = useState("Indian Pixel Studio");
+  const [studioName, setStudioName] = useState("Indian Pixel Design Studio");
   const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [enforcePaymentGate, setEnforcePaymentGate] = useState(true);
   const [enforceAgreementGate, setEnforceAgreementGate] = useState(true);
@@ -45,35 +45,42 @@ export default function OnboardingPage() {
 
   const handleFinishOnboarding = async () => {
     setIsLoading(true);
-    const res = await completeOnboardingAction({
-      studioName,
-      timezone,
-      enforcePaymentGate,
-      enforceAgreementGate,
-      teamInvites: teamInvites.filter((t) => t.email.trim() !== ""),
-    });
+    setErrorMessage(null);
+    try {
+      const res = await completeOnboardingAction({
+        studioName,
+        timezone,
+        enforcePaymentGate,
+        enforceAgreementGate,
+        teamInvites: teamInvites.filter((t) => t.email.trim() !== ""),
+      });
 
-    if (res.success && res.redirectTo) {
-      router.push(res.redirectTo);
-    } else {
+      if (res.success && res.redirectTo) {
+        router.push(res.redirectTo);
+      } else {
+        setIsLoading(false);
+        setErrorMessage(res.error || "Failed to complete onboarding.");
+      }
+    } catch {
       setIsLoading(false);
+      setErrorMessage("An unexpected error occurred during onboarding finalization.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-main-dark flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-xs font-sans">
-      <div className="glow-ambient" />
+    <div className="min-h-screen bg-[#030706] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-xs font-sans">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.08),rgba(255,255,255,0))] pointer-events-none" />
 
       {/* Header Container */}
       <div className="sm:mx-auto sm:w-full sm:max-w-2xl text-center space-y-2 z-10">
-        <div className="mx-auto h-12 w-12 rounded-lg bg-gradient-to-br from-brand-cta to-amber-700 flex items-center justify-center shadow-amber-glow">
-          <span className="font-heading font-bold text-black text-xl tracking-wider">IP</span>
+        <div className="mx-auto h-11 w-11 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+          <span className="font-heading font-bold text-amber-400 text-lg tracking-wider">IP</span>
         </div>
-        <h1 className="text-2xl font-bold font-heading text-brand-light">
-          Studio Launch Sequence
+        <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-100 tracking-tight">
+          Studio Launch Setup
         </h1>
-        <p className="text-brand-counter">
-          Configure multi-tenancy bounds, governance gates, and core team permissions.
+        <p className="text-xs text-slate-400 max-w-md mx-auto">
+          Establish multi-tenancy boundaries, operational governance gates, and core team permissions.
         </p>
 
         {/* Stepper Indicator */}
@@ -81,17 +88,17 @@ export default function OnboardingPage() {
           {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center gap-2">
               <div
-                className={`h-7 w-7 rounded-full flex items-center justify-center font-mono font-bold transition-all ${
+                className={`h-7 w-7 rounded-full flex items-center justify-center font-mono font-bold transition-all text-xs ${
                   step === s
-                    ? "bg-brand-cta text-black ring-2 ring-brand-cta/50"
+                    ? "bg-amber-400 text-black ring-2 ring-amber-400/40"
                     : step > s
                     ? "bg-emerald-950 text-emerald-400 border border-emerald-500/30"
-                    : "bg-white/5 text-brand-counter/60 border border-white/10"
+                    : "bg-white/[0.04] text-slate-500 border border-white/[0.08]"
                 }`}
               >
                 {step > s ? <CheckCircle2 className="h-4 w-4" /> : s}
               </div>
-              {s < 4 && <div className={`w-8 h-0.5 ${step > s ? "bg-emerald-500/40" : "bg-white/10"}`} />}
+              {s < 4 && <div className={`w-8 h-0.5 ${step > s ? "bg-emerald-500/40" : "bg-white/[0.08]"}`} />}
             </div>
           ))}
         </div>
@@ -99,36 +106,43 @@ export default function OnboardingPage() {
 
       {/* Step Content Container */}
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl z-10">
-        <div className="bg-brand-dark/95 p-6 sm:p-8 shadow-elevation-3 border border-white/10 rounded-xl backdrop-blur-md space-y-6">
+        <div className="bg-[#060D0C] p-6 sm:p-8 shadow-xl border border-white/[0.08] rounded-xl space-y-6">
+          {errorMessage && (
+            <div className="p-3 rounded bg-red-950/60 border border-red-800/40 text-red-200 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {/* STEP 1: Workspace Identity */}
           {step === 1 && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-semibold font-heading text-brand-light">
+              <div className="border-b border-white/[0.08] pb-3">
+                <h2 className="text-sm font-semibold font-heading text-slate-100">
                   Step 1: Workspace Identity & Timezone
                 </h2>
-                <p className="text-brand-counter mt-0.5">
+                <p className="text-slate-400 mt-0.5 text-xs">
                   Establishes the primary multi-tenancy boundary (Rule G-1) and system timestamp baseline (Rule G-9).
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label className="font-semibold text-brand-light block mb-1">Studio Name</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Studio Name</label>
                   <input
                     type="text"
                     value={studioName}
                     onChange={(e) => setStudioName(e.target.value)}
-                    className="w-full rounded border border-white/10 bg-brand-main-dark px-3 py-2 text-brand-light focus:outline-none focus:ring-1 focus:ring-brand-cta"
+                    className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500/40 text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="font-semibold text-brand-light block mb-1">Primary Studio Timezone</label>
+                  <label className="font-semibold text-slate-200 block mb-1">Primary Studio Timezone</label>
                   <select
                     value={timezone}
                     onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full rounded border border-white/10 bg-brand-main-dark px-3 py-2 text-brand-light focus:outline-none"
+                    className="w-full rounded-md border border-white/[0.10] bg-[#030706] px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500/40 text-xs font-mono"
                   >
                     <option value="Asia/Kolkata">Asia/Kolkata (IST — Standard)</option>
                     <option value="America/New_York">America/New_York (EST)</option>
@@ -142,22 +156,22 @@ export default function OnboardingPage() {
           {/* STEP 2: Governance Gate Switches */}
           {step === 2 && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-semibold font-heading text-brand-light">
+              <div className="border-b border-white/[0.08] pb-3">
+                <h2 className="text-sm font-semibold font-heading text-slate-100">
                   Step 2: Operational Gate Policies
                 </h2>
-                <p className="text-brand-counter mt-0.5">
+                <p className="text-slate-400 mt-0.5 text-xs">
                   Automated constraint switches that prevent delivery without settled invoices or signed agreements.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-start justify-between p-3 rounded bg-white/5 border border-white/5 gap-3">
+                <div className="flex items-start justify-between p-3 rounded-md bg-[#030706] border border-white/[0.04] gap-3">
                   <div className="space-y-0.5">
-                    <span className="font-semibold text-brand-light block">
+                    <span className="font-semibold text-slate-200 block">
                       Enforce Overdue Payment Gate (Rule PAY-3)
                     </span>
-                    <p className="text-brand-counter">
+                    <p className="text-slate-400">
                       Blocks subsequent milestone task creation whenever an overdue invoice is pending reconciliation.
                     </p>
                   </div>
@@ -165,16 +179,16 @@ export default function OnboardingPage() {
                     type="checkbox"
                     checked={enforcePaymentGate}
                     onChange={(e) => setEnforcePaymentGate(e.target.checked)}
-                    className="h-4 w-4 rounded accent-brand-cta cursor-pointer mt-1"
+                    className="h-4 w-4 rounded accent-amber-500 cursor-pointer mt-1"
                   />
                 </div>
 
-                <div className="flex items-start justify-between p-3 rounded bg-white/5 border border-white/5 gap-3">
+                <div className="flex items-start justify-between p-3 rounded-md bg-[#030706] border border-white/[0.04] gap-3">
                   <div className="space-y-0.5">
-                    <span className="font-semibold text-brand-light block">
+                    <span className="font-semibold text-slate-200 block">
                       Enforce Executed Agreement Gate (Rule AG-3)
                     </span>
-                    <p className="text-brand-counter">
+                    <p className="text-slate-400">
                       Locks milestone submission until a digital contract or Master Service Agreement has been signed.
                     </p>
                   </div>
@@ -182,7 +196,7 @@ export default function OnboardingPage() {
                     type="checkbox"
                     checked={enforceAgreementGate}
                     onChange={(e) => setEnforceAgreementGate(e.target.checked)}
-                    className="h-4 w-4 rounded accent-brand-cta cursor-pointer mt-1"
+                    className="h-4 w-4 rounded accent-amber-500 cursor-pointer mt-1"
                   />
                 </div>
               </div>
@@ -192,17 +206,17 @@ export default function OnboardingPage() {
           {/* STEP 3: Initial Core Team */}
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <div>
-                  <h2 className="text-base font-semibold font-heading text-brand-light">
+                  <h2 className="text-sm font-semibold font-heading text-slate-100">
                     Step 3: Core Team Invitations
                   </h2>
-                  <p className="text-brand-counter mt-0.5">
-                    Invite your Project Manager and senior design leads with strictly scoped roles (Rule G-6).
+                  <p className="text-slate-400 mt-0.5 text-xs">
+                    Invite key Project Managers and senior design leads with strictly scoped roles (Rule G-6).
                   </p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={handleAddInvite}>
-                  <Plus className="h-3.5 w-3.5 mr-1 text-brand-cta" />
+                <Button size="sm" variant="secondary" onClick={handleAddInvite} className="text-xs">
+                  <Plus className="h-3.5 w-3.5 mr-1 text-amber-400" />
                   <span>Add Role</span>
                 </Button>
               </div>
@@ -219,7 +233,7 @@ export default function OnboardingPage() {
                         updated[idx]!.email = e.target.value;
                         setTeamInvites(updated);
                       }}
-                      className="flex-1 rounded border border-white/10 bg-brand-main-dark px-3 py-1.5 text-brand-light focus:outline-none"
+                      className="flex-1 rounded-md border border-white/[0.10] bg-[#030706] px-3 py-1.5 text-slate-100 focus:outline-none focus:border-amber-500/40 text-xs font-mono"
                     />
                     <select
                       value={invite.role}
@@ -228,7 +242,7 @@ export default function OnboardingPage() {
                         updated[idx]!.role = e.target.value;
                         setTeamInvites(updated);
                       }}
-                      className="rounded border border-white/10 bg-brand-main-dark px-2.5 py-1.5 text-brand-light focus:outline-none"
+                      className="rounded-md border border-white/[0.10] bg-[#030706] px-2.5 py-1.5 text-slate-100 focus:outline-none text-xs font-mono"
                     >
                       <option value="PROJECT_MANAGER">Project Manager</option>
                       <option value="DESIGNER">Designer</option>
@@ -238,7 +252,7 @@ export default function OnboardingPage() {
                     {teamInvites.length > 1 && (
                       <button
                         onClick={() => handleRemoveInvite(idx)}
-                        className="p-1.5 rounded text-brand-counter hover:text-red-400"
+                        className="p-1.5 rounded text-slate-500 hover:text-red-400"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -252,39 +266,39 @@ export default function OnboardingPage() {
           {/* STEP 4: Review & Final Launch */}
           {step === 4 && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="border-b border-white/10 pb-3">
-                <h2 className="text-base font-semibold font-heading text-brand-light">
+              <div className="border-b border-white/[0.08] pb-3">
+                <h2 className="text-sm font-semibold font-heading text-slate-100">
                   Step 4: Review & Deploy Workspace
                 </h2>
-                <p className="text-brand-counter mt-0.5">
-                  Confirm your studio parameters. An immutable onboarding event will be logged in the Audit Trail.
+                <p className="text-slate-400 mt-0.5 text-xs">
+                  Confirm your studio parameters. An immutable onboarding event will be logged in PostgreSQL.
                 </p>
               </div>
 
-              <div className="space-y-2.5 p-4 rounded-lg bg-white/5 border border-white/5">
+              <div className="space-y-2.5 p-4 rounded-lg bg-[#030706] border border-white/[0.04]">
                 <div className="flex justify-between">
-                  <span className="text-brand-counter">Studio Name:</span>
-                  <span className="font-semibold text-brand-light">{studioName}</span>
+                  <span className="text-slate-400">Studio Name:</span>
+                  <span className="font-semibold text-slate-100">{studioName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-brand-counter">Timezone:</span>
-                  <span className="font-mono text-brand-light">{timezone}</span>
+                  <span className="text-slate-400">Timezone:</span>
+                  <span className="font-mono text-slate-200">{timezone}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-brand-counter">Payment Gate (Rule PAY-3):</span>
-                  <span className={enforcePaymentGate ? "text-emerald-400 font-bold" : "text-brand-counter"}>
+                  <span className="text-slate-400">Payment Gate (Rule PAY-3):</span>
+                  <span className={enforcePaymentGate ? "text-emerald-400 font-bold font-mono" : "text-slate-500 font-mono"}>
                     {enforcePaymentGate ? "ENFORCED" : "OFF"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-brand-counter">Agreement Gate (Rule AG-3):</span>
-                  <span className={enforceAgreementGate ? "text-emerald-400 font-bold" : "text-brand-counter"}>
+                  <span className="text-slate-400">Agreement Gate (Rule AG-3):</span>
+                  <span className={enforceAgreementGate ? "text-emerald-400 font-bold font-mono" : "text-slate-500 font-mono"}>
                     {enforceAgreementGate ? "ENFORCED" : "OFF"}
                   </span>
                 </div>
-                <div className="flex justify-between border-t border-white/5 pt-2">
-                  <span className="text-brand-counter">Team Members:</span>
-                  <span className="font-mono text-brand-cta">
+                <div className="flex justify-between border-t border-white/[0.06] pt-2">
+                  <span className="text-slate-400">Team Members:</span>
+                  <span className="font-mono text-amber-400">
                     {teamInvites.filter((t) => t.email.trim()).length} Pending Invites
                   </span>
                 </div>
@@ -293,16 +307,16 @@ export default function OnboardingPage() {
           )}
 
           {/* Bottom Stepper Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between pt-4 border-t border-white/[0.08]">
             {step > 1 ? (
-              <Button size="sm" variant="ghost" onClick={() => setStep(step - 1)}>
+              <Button size="sm" variant="ghost" onClick={() => setStep(step - 1)} className="text-xs">
                 <ArrowLeft className="h-3.5 w-3.5 mr-1" />
                 <span>Back</span>
               </Button>
             ) : <div />}
 
             {step < 4 ? (
-              <Button size="sm" variant="primary" onClick={() => setStep(step + 1)}>
+              <Button size="sm" variant="primary" onClick={() => setStep(step + 1)} className="text-xs">
                 <span>Next Step</span>
                 <ArrowRight className="h-3.5 w-3.5 ml-1" />
               </Button>
@@ -312,7 +326,7 @@ export default function OnboardingPage() {
                 variant="primary"
                 isLoading={isLoading}
                 onClick={handleFinishOnboarding}
-                className="font-semibold"
+                className="font-semibold text-xs h-9"
               >
                 <span>Launch Operating System</span>
                 <ArrowRight className="h-3.5 w-3.5 ml-1.5" />

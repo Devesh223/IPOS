@@ -73,6 +73,9 @@ export async function createTaskAction(input: CreateTaskInput) {
     );
   }
 
+  const initialStatus = input.assigneeId ? TaskStatus.ASSIGNED : TaskStatus.BACKLOG;
+  assertTaskHasSingleAssignee(input.assigneeId, initialStatus);
+
   const createdTask = await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
       data: {
@@ -81,7 +84,7 @@ export async function createTaskAction(input: CreateTaskInput) {
         assigneeId: input.assigneeId || null,
         name: input.name,
         description: input.description ?? null,
-        status: input.assigneeId ? TaskStatus.ASSIGNED : TaskStatus.BACKLOG,
+        status: initialStatus,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
       },
     });
@@ -216,6 +219,8 @@ export async function reassignTaskAction(input: ReassignTaskInput) {
     throw new Error(`Assignee user was not found.`);
   }
 
+  assertTaskHasSingleAssignee(input.newAssigneeId, TaskStatus.IN_PROGRESS);
+
   await prisma.$transaction(async (tx) => {
     await tx.task.update({
       where: { id: input.taskId },
@@ -236,6 +241,67 @@ export async function reassignTaskAction(input: ReassignTaskInput) {
         priorState: `Assignee: ${task.assignee?.name ?? "Unassigned"}`,
         newState: `Assignee: ${newAssignee.name}`,
         justification: input.justification || "PM balanced production workload (Rule T-3)",
+      },
+      tx
+    );
+  });
+
+  revalidatePath(`/projects/${task.milestone.service.projectId}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export interface UpdateTaskStatusInput {
+  taskId: string;
+  status: TaskStatus;
+}
+
+/**
+ * Updates task status while enforcing single assignee and deliverable completion rules (Rule T-1, T-4).
+ */
+export async function updateTaskStatusAction(input: UpdateTaskStatusInput) {
+  const session = await requireSession();
+
+  const task = await prisma.task.findUnique({
+    where: { id: input.taskId },
+    include: {
+      deliverables: true,
+      milestone: {
+        include: { service: true },
+      },
+    },
+  });
+
+  if (!task) {
+    throw new Error(`Task with ID '${input.taskId}' was not found.`);
+  }
+
+  assertTaskHasSingleAssignee(task.assigneeId, input.status);
+
+  if (input.status === TaskStatus.COMPLETE) {
+    const rejectedDeliverables = task.deliverables
+      .filter((d) => d.status === DeliverableStatus.REJECTED || d.status === DeliverableStatus.CHANGES_REQUESTED)
+      .map((d) => ({ id: d.id, name: d.name, status: d.status }));
+    assertNoOutstandingRejectedDeliverables(rejectedDeliverables);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: { id: input.taskId },
+      data: { status: input.status },
+    });
+
+    await writeAuditLogEntry(
+      {
+        workspaceId: session.workspaceId,
+        actorId: session.user.id,
+        actorType: "USER",
+        entityType: "Task",
+        entityId: input.taskId,
+        action: `task.status_${input.status.toLowerCase()}`,
+        priorState: task.status,
+        newState: input.status,
+        justification: `Task status updated to ${input.status}`,
       },
       tx
     );

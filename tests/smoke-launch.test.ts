@@ -43,48 +43,25 @@ describe("Production Smoke Test: 2. RBAC & Multi-Tenant Cross-Workspace Containm
       name: "Brand Redesign",
     };
 
-    function assertWorkspaceAccess(targetWsId: string, currentWsId: string) {
-      if (targetWsId !== currentWsId) {
-        throw new AuthorizationError("UNAUTHORIZED: Access to foreign workspace resource denied.");
-      }
-    }
-
-    expect(() => assertWorkspaceAccess(targetProject.workspaceId, session.workspaceId)).toThrowError(AuthorizationError);
+    const isSameWorkspace = targetProject.workspaceId === session.workspaceId;
+    expect(isSameWorkspace).toBe(false);
   });
 });
 
+import { assertPaymentGateAllowsTaskCreation } from "../src/domain/payments/rules";
+import { assertProjectHasActiveAgreement } from "../src/domain/projects/rules";
+
 describe("Production Smoke Test: 3. Gated Delivery Engine (PAY-3 & AG-3)", () => {
   it("enforces Rule PAY-3: blocks milestone progress when overdue invoices exist", () => {
-    const invoice = {
-      id: "inv_overdue_1",
-      invoiceNumber: "IP-INV-2026-0001",
-      status: "OVERDUE",
-      remainingBalance: 5000000,
-    };
-
-    function assertPaymentGate(invStatus: string) {
-      if (invStatus === "OVERDUE") {
-        throw new BusinessRuleError("PAY-3", "Cannot initiate next milestone tasks while prior milestone invoice is overdue.");
-      }
-    }
-
-    expect(() => assertPaymentGate(invoice.status)).toThrowError(BusinessRuleError);
+    expect(() =>
+      assertPaymentGateAllowsTaskCreation(true, true, "IP-INV-2026-0001")
+    ).toThrowError(BusinessRuleError);
   });
 
   it("enforces Rule AG-3: blocks milestone delivery when master agreement is unsigned", () => {
-    const client = {
-      id: "cli_101",
-      name: "Mitti Organic",
-      onboardingStatus: "INVITED",
-    };
-
-    function assertAgreementGate(onboardingStatus: string) {
-      if (onboardingStatus !== "COMPLETED" && onboardingStatus !== "AGREEMENT_SIGNED") {
-        throw new BusinessRuleError("AG-3", "Master Service Agreement must be executed before deliverable handoff.");
-      }
-    }
-
-    expect(() => assertAgreementGate(client.onboardingStatus)).toThrowError(BusinessRuleError);
+    expect(() =>
+      assertProjectHasActiveAgreement(true, false, "Mitti Organic")
+    ).toThrowError(BusinessRuleError);
   });
 });
 
