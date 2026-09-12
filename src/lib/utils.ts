@@ -48,6 +48,51 @@ export function formatRelativeTime(date: Date | string | number): string {
 }
 
 /**
+ * Converts Indian Rupee amounts in paise to words (e.g. "One Lakh Fifty Thousand").
+ */
+export function amountToWordsINR(amountInPaise: number): string {
+  const amount = Math.floor(amountInPaise / 100);
+  if (amount === 0) return "Zero";
+
+  const single = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const double = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  function convertChunk(n: number): string {
+    let str = "";
+    if (n > 99) {
+      str += single[Math.floor(n / 100)] + " Hundred ";
+      n %= 100;
+    }
+    if (n > 19) {
+      str += tens[Math.floor(n / 10)] + " ";
+      n %= 10;
+    }
+    if (n > 9 && n < 20) {
+      str += double[n - 10] + " ";
+    } else if (n > 0) {
+      str += single[n] + " ";
+    }
+    return str;
+  }
+
+  let word = "";
+  const crore = Math.floor(amount / 10000000);
+  let remainder = amount % 10000000;
+  const lakh = Math.floor(remainder / 100000);
+  remainder %= 100000;
+  const thousand = Math.floor(remainder / 1000);
+  remainder %= 1000;
+
+  if (crore > 0) word += convertChunk(crore) + "Crore ";
+  if (lakh > 0) word += convertChunk(lakh) + "Lakh ";
+  if (thousand > 0) word += convertChunk(thousand) + "Thousand ";
+  if (remainder > 0) word += convertChunk(remainder);
+
+  return word.trim();
+}
+
+/**
  * Extracts initials from a user's name for Avatar fallback.
  */
 export function getInitials(name: string): string {

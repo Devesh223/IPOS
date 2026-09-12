@@ -25,6 +25,7 @@ import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/utils";
 import { recordPaymentAction, voidInvoiceAction, issueCreditNoteAction, reconcilePaymentAction } from "@/actions/finance";
 import { useApp } from "@/lib/app-context";
+import { IndianPixelInvoiceDocument } from "@/components/invoice/IndianPixelInvoiceDocument";
 
 export function InvoiceDetailView({ invoice }: { invoice: any }) {
   const router = useRouter();
@@ -256,104 +257,12 @@ export function InvoiceDetailView({ invoice }: { invoice: any }) {
       </div>
 
       {/* Formal Printable Studio Invoice Document Preview */}
-      <div className="p-6 sm:p-8 rounded-lg bg-[#060D0C] border border-white/[0.08] shadow-elevation-1 space-y-6">
-        {/* Document Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-white/[0.08]">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="font-heading font-bold text-base text-slate-100 tracking-tight">
-                INDIAN PIXEL STUDIO
-              </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                TAX INVOICE
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-              Indian Pixel Enterprises Private Limited<br />
-              GSTIN: <span className="font-mono text-slate-300">07AAACI1122K1Z9</span> • PAN: <span className="font-mono text-slate-300">AAACI1122K</span><br />
-              Registered Studio Office: New Delhi, India
-            </p>
-          </div>
-
-          <div className="space-y-1 text-left sm:text-right font-mono text-xs">
-            <div className="text-slate-100 font-bold text-sm">{invoice.invoiceNumber}</div>
-            <div className="text-slate-400 text-[11px]">Issue Date: <span className="text-slate-200">{invoice.issuedAt || formatDate(new Date())}</span></div>
-            <div className="text-slate-400 text-[11px]">Payment Due: <span className="text-amber-400 font-semibold">{invoice.dueDate}</span></div>
-            <div className="text-slate-400 text-[11px]">Supply: <span className="text-slate-200">{invoice.isInterState ? "Inter-State (IGST)" : "Intra-State (CGST+SGST)"}</span></div>
-          </div>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between text-xs font-mono text-slate-400 no-print">
+          <span>Format: Official Indian Pixel Studio Tax Invoice & Payment Schedule</span>
+          <span className="text-amber-400">Ready for PDF Download & Printing</span>
         </div>
-
-        {/* Billed To / Client Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded bg-[#030706] border border-white/[0.04] text-xs">
-          <div className="space-y-1">
-            <span className="text-[10px] font-mono uppercase text-slate-500 block">Billed To (Client Entity):</span>
-            <div className="font-semibold text-slate-100 text-sm">{invoice.client?.companyName || invoice.client?.name}</div>
-            <p className="text-slate-400 text-[11px]">Attn: {invoice.client?.name} ({invoice.client?.email})</p>
-          </div>
-
-          <div className="space-y-1 sm:text-right">
-            <span className="text-[10px] font-mono uppercase text-slate-500 block">Project Engagement:</span>
-            <div className="font-semibold text-slate-200">{invoice.project?.name}</div>
-            {invoice.milestone && (
-              <p className="text-slate-400 text-[11px]">Milestone: {invoice.milestone.name}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Itemized Line Items Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-sans">
-            <thead>
-              <tr className="border-b border-white/[0.08] text-slate-400 uppercase font-mono text-[10px]">
-                <th className="pb-3">#</th>
-                <th className="pb-3">Scope Deliverable Description</th>
-                <th className="pb-3 text-center">Qty</th>
-                <th className="pb-3 text-right">Unit Price</th>
-                <th className="pb-3 text-right">Taxable</th>
-                <th className="pb-3 text-right">GST (18%)</th>
-                <th className="pb-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]">
-              {invoice.lineItems.map((item: any, idx: number) => (
-                <tr key={item.id} className="text-slate-200">
-                  <td className="py-3 font-mono text-slate-500">{idx + 1}</td>
-                  <td className="py-3 font-medium text-slate-100">{item.description}</td>
-                  <td className="py-3 text-center font-mono">{item.quantity}</td>
-                  <td className="py-3 text-right font-mono">{formatCurrency(item.unitAmount)}</td>
-                  <td className="py-3 text-right font-mono">{formatCurrency(item.taxableAmount)}</td>
-                  <td className="py-3 text-right font-mono text-sky-400">{formatCurrency(item.taxAmount)}</td>
-                  <td className="py-3 text-right font-mono font-bold text-slate-100">{formatCurrency(item.totalAmount)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-white/[0.08] font-semibold text-slate-100">
-                <td colSpan={4} className="pt-4 text-right text-slate-400 uppercase font-mono text-[10px]">Totals:</td>
-                <td className="pt-4 text-right font-mono">{formatCurrency(invoice.subtotal)}</td>
-                <td className="pt-4 text-right font-mono text-sky-400">{formatCurrency(invoice.taxAmount)}</td>
-                <td className="pt-4 text-right font-mono font-bold text-amber-400 text-sm">{formatCurrency(invoice.amount)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Bank Transfer Instructions */}
-        <div className="p-4 rounded-lg bg-[#030706] border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
-          <div className="space-y-1">
-            <span className="text-[10px] uppercase text-slate-400 tracking-wider font-semibold block">
-              Official Bank Settlement Details
-            </span>
-            <p className="text-[11px] text-slate-300">
-              Bank: <strong>HDFC Bank Ltd</strong> • Account: <strong>50200088992211</strong> (Current)<br />
-              IFSC: <strong>HDFC0001234</strong> • Beneficiary: <strong>INDIAN PIXEL ENTERPRISES PVT LTD</strong>
-            </p>
-          </div>
-          <div className="text-left sm:text-right">
-            <span className="text-[10px] text-slate-400 block">Required Reference on Remittance:</span>
-            <span className="font-bold text-amber-400">{invoice.invoiceNumber}</span>
-          </div>
-        </div>
+        <IndianPixelInvoiceDocument invoice={invoice} />
       </div>
 
       {/* Grid: Payment Ledger & Credit Notes */}
