@@ -127,6 +127,45 @@ export function InvoiceDetailView({ invoice }: { invoice: any }) {
 
   const remainingAfterPayment = Math.max(0, invoice.remainingBalance - paymentAmount);
 
+  const handlePrintPDF = () => {
+    const printElem = document.querySelector(".invoice-print-container");
+    if (!printElem) {
+      window.print();
+      return;
+    }
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice_${invoice.invoiceNumber}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @page { size: A4 portrait; margin: 0; }
+            body { background: #ffffff !important; color: #000000 !important; margin: 0; padding: 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: sans-serif; }
+            .invoice-page-break { page-break-before: always; break-before: page; }
+          </style>
+        </head>
+        <body>
+          ${printElem.innerHTML}
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 400);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* Header & Back Navigation */}
@@ -157,13 +196,13 @@ export function InvoiceDetailView({ invoice }: { invoice: any }) {
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <Button
-            variant="secondary"
+            variant="primary"
             size="sm"
-            onClick={() => window.print()}
+            onClick={handlePrintPDF}
             className="text-xs"
           >
             <Printer className="h-3.5 w-3.5 mr-1" />
-            <span>Print Invoice</span>
+            <span>Download PDF / Print</span>
           </Button>
 
           {isFinanceOrAdmin && invoice.status !== "VOID" && (

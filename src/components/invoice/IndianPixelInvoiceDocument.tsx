@@ -134,21 +134,40 @@ export function IndianPixelInvoiceDocument({ invoice }: InvoiceDocumentProps) {
     <div className="invoice-print-container bg-white text-slate-900 font-sans p-6 sm:p-10 max-w-4xl mx-auto shadow-2xl rounded-sm print:p-0 print:shadow-none print:max-w-none">
       <style jsx global>{`
         @media print {
-          body {
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .invoice-print-container,
+          .invoice-print-container * {
+            visibility: visible !important;
+          }
+          .invoice-print-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 24px !important;
             background-color: #ffffff !important;
             color: #000000 !important;
+            box-shadow: none !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
           }
           .invoice-page-break {
-            page-break-before: always;
-            break-before: page;
-          }
-          .invoice-print-container {
-            padding: 0 !important;
-            box-shadow: none !important;
-            max-w: 100% !important;
+            page-break-before: always !important;
+            break-before: page !important;
           }
         }
       `}</style>
