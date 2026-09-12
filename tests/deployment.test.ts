@@ -4,7 +4,7 @@ import { validateEnv } from "../src/lib/env";
 
 describe("Production Deployment: Health Check API Endpoint", () => {
   it("returns standard health check structure without exposing credentials", async () => {
-    const response = await healthCheckGet();
+    const response = await healthCheckGet(new Request("http://localhost:3000/api/health"));
     const json = await response.json();
 
     expect(json.service).toBe("indian-pixel-os");

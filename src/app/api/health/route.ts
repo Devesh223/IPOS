@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
  * Production Health Check Endpoint for Indian Pixel OS.
  * Returns basic service and database readiness without exposing internal secrets.
  */
-export async function GET(request: Request = new Request("http://localhost:3000/api/health")) {
-  const url = request ? new URL(request.url) : new URL("http://localhost:3000/api/health");
+export async function GET(request: Request) {
+  const url = new URL(request.url);
   const searchParams = url.searchParams;
   const isFastPing = searchParams.get("ping") === "fast" || searchParams.get("keepalive") === "true";
 
