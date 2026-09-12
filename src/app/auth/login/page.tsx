@@ -111,36 +111,90 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#030706] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.08),rgba(255,255,255,0))] pointer-events-none" />
+    <div className="min-h-screen bg-[#030706] text-slate-100 flex flex-col lg:flex-row overflow-hidden font-sans">
+      {/* Left Editorial Brand & Value Showcase Panel */}
+      <div className="lg:w-1/2 bg-[#060D0C] border-r border-white/[0.07] p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+        {/* Subtle Ambient Radial Glow */}
+        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2 z-10">
-        <div className="mx-auto h-11 w-11 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <span className="font-heading font-bold text-amber-400 text-lg tracking-wider">IP</span>
+        {/* Brand Header */}
+        <div className="relative z-10 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shadow-inner">
+              <span className="font-heading font-bold text-amber-400 text-base tracking-wider">IP</span>
+            </div>
+            <div>
+              <h1 className="font-heading font-bold text-sm tracking-tight text-slate-100 uppercase">
+                Indian Pixel OS
+              </h1>
+              <span className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">
+                Agency Studio Infrastructure
+              </span>
+            </div>
+          </div>
         </div>
-        <h2 className="text-xl sm:text-2xl font-bold font-heading text-slate-100 tracking-tight">
-          Indian Pixel Operating System
-        </h2>
-        <p className="text-xs text-slate-400 font-sans max-w-sm mx-auto">
-          Single source of truth for digital agency project delivery, gated approvals, and financial settlement.
-        </p>
+
+        {/* Editorial Value Pitch */}
+        <div className="relative z-10 my-12 space-y-6 max-w-md">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 font-mono font-medium">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <span>Cryptographic Milestone Gates & GST Settlement</span>
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-heading text-slate-100 tracking-tight leading-tight">
+            The Operating System for Premier Digital Studios.
+          </h2>
+
+          <p className="text-xs sm:text-sm text-slate-400 font-sans leading-relaxed">
+            Unify client contracts, GST milestone gating, deliverable versioning, Razorpay settlement, and forensic audit logs into a single authoritative workspace.
+          </p>
+
+          <div className="pt-4 grid grid-cols-2 gap-4 border-t border-white/[0.06]">
+            <div>
+              <div className="text-lg font-bold font-mono text-amber-400 tracking-tight tabular-nums">100%</div>
+              <div className="text-[11px] text-slate-400 font-sans mt-0.5">Automated Gate Verification</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold font-mono text-emerald-400 tracking-tight tabular-nums">GST Ready</div>
+              <div className="text-[11px] text-slate-400 font-sans mt-0.5">CGST / SGST / IGST Calculation</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Proof / Quote */}
+        <div className="relative z-10 pt-6 border-t border-white/[0.06] text-xs text-slate-500 font-mono">
+          <span>Enterprise Security • RBAC Policy Enforced</span>
+        </div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md z-10">
-        <div className="bg-[#060D0C] py-8 px-6 shadow-xl border border-white/[0.08] rounded-xl sm:px-10 space-y-6">
-          <Suspense fallback={<div className="h-36 flex items-center justify-center text-xs text-slate-500">Loading authentication...</div>}>
-            <LoginForm />
-          </Suspense>
-
-          <div className="pt-4 border-t border-white/[0.06] text-center space-y-2">
-            <p className="text-[11px] text-slate-400 font-mono">
-              Demo Founder: <code className="text-amber-400 font-semibold">krishna@indianpixel.com</code>
+      {/* Right Authenticated Form Card Container */}
+      <div className="lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 relative">
+        <div className="w-full max-w-sm space-y-6">
+          <div className="space-y-1 text-left">
+            <h2 className="text-xl sm:text-2xl font-bold font-heading text-slate-100 tracking-tight">
+              Sign In to Your Workspace
+            </h2>
+            <p className="text-xs text-slate-400 font-sans">
+              Enter your verified credentials to access studio operations.
             </p>
-            <div className="text-xs text-slate-400">
-              <span>New Agency Studio? </span>
-              <Link href="/auth/signup" className="text-amber-400 font-semibold hover:underline">
-                Create Workspace
-              </Link>
+          </div>
+
+          <div className="bg-[#060D0C] p-6 sm:p-7 border border-white/[0.08] rounded-xl shadow-elevation-3">
+            <Suspense fallback={<div className="h-36 flex items-center justify-center text-xs text-slate-500">Loading authentication...</div>}>
+              <LoginForm />
+            </Suspense>
+
+            <div className="mt-6 pt-4 border-t border-white/[0.06] text-center space-y-2">
+              <p className="text-[11px] text-slate-400 font-mono">
+                Demo Admin: <code className="text-amber-400 font-semibold">krishna@indianpixel.com</code>
+              </p>
+              <div className="text-xs text-slate-400">
+                <span>New Agency Studio? </span>
+                <Link href="/auth/signup" className="text-amber-400 font-semibold hover:underline">
+                  Initialize Workspace
+                </Link>
+              </div>
             </div>
           </div>
         </div>
