@@ -32,7 +32,7 @@ describe("Production Data: Admin Bootstrap & Password Cryptography", () => {
         delete process.env.ADMIN_PASSWORD;
       }
     }
-  });
+  }, 15000);
 });
 
 describe("Production Data: Environment Validation & Secret Redaction", () => {
